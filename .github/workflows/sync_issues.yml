@@ -1,6 +1,5 @@
 name: Sync YouTrack Issues to GitHub
 
-# Trigger on any push to ANY branch across the repository
 on:
   push:
   workflow_dispatch:
@@ -9,22 +8,92 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     permissions:
-      issues: write  # Grants GITHUB_TOKEN permission to create/edit issues
+      issues: write
 
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Run YouTrack Sync Script
+      - name: Sync YouTrack to GitHub Issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
           YOUTRACK_BASE_URL: ${{ secrets.YOUTRACK_BASE_URL }}
           YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN }}
           YOUTRACK_PROJECT_ID: "PHY"
         run: |
-          python .github/scripts/sync_youtrack.py
+          python - << 'EOF'
+          import json
+          import os
+          import sys
+          import urllib.request
+          import urllib.parse
+          import urllib.error
+
+          YOUTRACK_BASE_URL = os.environ.get("YOUTRACK_BASE_URL", "").rstrip('/')
+          YOUTRACK_TOKEN = os.environ.get("YOUTRACK_TOKEN", "")
+          YOUTRACK_PROJECT_ID = os.environ.get("YOUTRACK_PROJECT_ID", "PHY")
+          GITHUB_REPO = os.environ.get("GITHUB_REPO", "")
+          GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+
+          if not YOUTRACK_BASE_URL or not YOUTRACK_TOKEN or not GITHUB_TOKEN:
+              print("[!] Missing required secrets! Please verify YOUTRACK_BASE_URL and YOUTRACK_TOKEN in Repo Settings -> Secrets.")
+              sys.exit(1)
+
+          def make_request(url, headers, method="GET", data=None):
+              req = urllib.request.Request(url, headers=headers, method=method)
+              if data is not None:
+                  req.data = json.dumps(data).encode('utf-8')
+                  req.add_header('Content-Type', 'application/json')
+              try:
+                  with urllib.request.urlopen(req) as response:
+                      if response.status == 204:
+                          return None
+                      return json.loads(response.read().decode('utf-8'))
+              except urllib.error.HTTPError as e:
+                  err = e.read().decode('utf-8', errors='ignore')
+                  print(f"[-] HTTP {e.code} Error for {url}:\n{err}")
+                  return None
+
+          print(f"[*] Querying YouTrack project '{YOUTRACK_PROJECT_ID}'...")
+          query = urllib.parse.quote(f"project: {YOUTRACK_PROJECT_ID} #Unresolved")
+          url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields=idReadable,summary,description"
+          yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
+          
+          yt_issues = make_request(url, yt_headers) or []
+          print(f"[*] Found {len(yt_issues)} unresolved YouTrack issue(s).")
+          if not yt_issues:
+              sys.exit(0)
+
+          gh_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues?state=all&per_page=100"
+          gh_headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+          gh_issues = make_request(gh_url, gh_headers) or []
+          
+          existing_ids = set()
+          for item in gh_issues:
+              title = item.get("title", "")
+              if title.startswith("[") and "]" in title:
+                  existing_ids.add(title[1:title.index("]")])
+
+          count = 0
+          for issue in yt_issues:
+              yt_id = issue.get("idReadable")
+              if yt_id in existing_ids:
+                  continue
+              summary = issue.get("summary", "No Summary")
+              desc = issue.get("description", "")
+              print(f"[*] Importing {yt_id}: {summary}...")
+              
+              post_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues"
+              payload = {"title": f"[{yt_id}] {summary}", "body": f"{desc or ''}\n\n---\n*Synced from YouTrack: {yt_id}*"}
+              res = make_request(post_url, gh_headers, method="POST", data=payload)
+              if res and "html_url" in res:
+                  print(f"[+] Created: {res['html_url']}")
+                  count += 1
+              else:
+                  print(f"[-] Failed to import {yt_id}")
+
+          print(f"[*] Sync complete. Imported {count} issue(s).")
+          EOF
