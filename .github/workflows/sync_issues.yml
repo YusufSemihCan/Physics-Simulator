@@ -11,11 +11,6 @@ jobs:
       issues: write
 
     steps:
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Sync YouTrack to GitHub Issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -24,7 +19,7 @@ jobs:
           YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN }}
           YOUTRACK_PROJECT_ID: "PHY"
         run: |
-          python - << 'EOF'
+          python3 - << 'EOF'
           import json
           import os
           import sys
