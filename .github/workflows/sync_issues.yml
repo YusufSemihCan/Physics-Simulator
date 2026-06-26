@@ -15,8 +15,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
-          YOUTRACK_BASE_URL: ${{ secrets.YOUTRACK_BASE_URL || secrets.YOUTRACK_URL || secrets.BASE_URL }}
-          YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN || secrets.YOUTRACK_API_TOKEN || secrets.TOKEN }}
+          YOUTRACK_BASE_URL: ${{ secrets.YOUTRACK_BASE_URL || vars.YOUTRACK_BASE_URL || secrets.YOUTRACK_URL || vars.YOUTRACK_URL }}
+          YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN || vars.YOUTRACK_TOKEN || secrets.TOKEN || vars.TOKEN }}
           YOUTRACK_PROJECT_ID: "PHY"
         run: |
           python3 - << 'EOF'
@@ -39,10 +39,11 @@ jobs:
           print(f"[*] Debug Status - YOUTRACK_TOKEN set: {bool(YOUTRACK_TOKEN)}")
 
           if not YOUTRACK_BASE_URL or not YOUTRACK_TOKEN or not GITHUB_TOKEN:
-              print("\n[!] CRITICAL ERROR: Secret variables came through as completely empty.")
-              print("    Please go to Repo Settings -> Secrets and variables -> Actions and verify:")
-              print("    1. They are listed under 'Repository secrets' (NOT 'Environment secrets').")
-              print("    2. Their names are spelled exactly YOUTRACK_BASE_URL and YOUTRACK_TOKEN.")
+              print("\n[!] CRITICAL ERROR: Both 'secrets' and 'vars' came through as completely empty.")
+              print("    This means GitHub is not passing these values to the workflow container.")
+              print("    Please double check:")
+              print("    1. Are you looking at Repo Settings -> Secrets and variables -> Actions?")
+              print("    2. If this is a fork or personal workspace, did you create them in your personal profile instead of repo settings?")
               sys.exit(1)
 
           def make_request(url, headers, method="GET", data=None):
