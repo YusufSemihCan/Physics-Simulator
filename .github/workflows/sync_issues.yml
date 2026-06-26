@@ -1,0 +1,30 @@
+name: Sync YouTrack Issues to GitHub
+
+# Trigger on any push to ANY branch across the repository
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write  # Grants GITHUB_TOKEN permission to create/edit issues
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run YouTrack Sync Script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YOUTRACK_BASE_URL: ${{ secrets.YOUTRACK_BASE_URL }}
+          YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN }}
+          YOUTRACK_PROJECT_ID: "PHY"
+        run: |
+          python .github/scripts/sync_youtrack.py
