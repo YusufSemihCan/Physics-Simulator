@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repository commit history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0 # Full history required for commit time tracking scan
 
