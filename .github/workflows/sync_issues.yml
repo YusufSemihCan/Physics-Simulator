@@ -15,8 +15,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
-          YOUTRACK_BASE_URL: ${{ secrets.YOUTRACK_BASE_URL }}
-          YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN }}
+          YOUTRACK_BASE_URL: ${{ secrets.YOUTRACK_BASE_URL || secrets.YOUTRACK_URL || secrets.BASE_URL }}
+          YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN || secrets.YOUTRACK_API_TOKEN || secrets.TOKEN }}
           YOUTRACK_PROJECT_ID: "PHY"
         run: |
           python3 - << 'EOF'
@@ -33,8 +33,16 @@ jobs:
           GITHUB_REPO = os.environ.get("GITHUB_REPO", "")
           GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
+          print(f"[*] Debug Status - GITHUB_REPO: '{GITHUB_REPO}'")
+          print(f"[*] Debug Status - GITHUB_TOKEN set: {bool(GITHUB_TOKEN)}")
+          print(f"[*] Debug Status - YOUTRACK_BASE_URL set: {bool(YOUTRACK_BASE_URL)}")
+          print(f"[*] Debug Status - YOUTRACK_TOKEN set: {bool(YOUTRACK_TOKEN)}")
+
           if not YOUTRACK_BASE_URL or not YOUTRACK_TOKEN or not GITHUB_TOKEN:
-              print("[!] Missing required secrets! Please verify YOUTRACK_BASE_URL and YOUTRACK_TOKEN in Repo Settings -> Secrets.")
+              print("\n[!] CRITICAL ERROR: Secret variables came through as completely empty.")
+              print("    Please go to Repo Settings -> Secrets and variables -> Actions and verify:")
+              print("    1. They are listed under 'Repository secrets' (NOT 'Environment secrets').")
+              print("    2. Their names are spelled exactly YOUTRACK_BASE_URL and YOUTRACK_TOKEN.")
               sys.exit(1)
 
           def make_request(url, headers, method="GET", data=None):
@@ -52,12 +60,16 @@ jobs:
                   print(f"[-] HTTP {e.code} Error for {url}:\n{err}")
                   return None
 
-          print(f"[*] Querying YouTrack project '{YOUTRACK_PROJECT_ID}'...")
+          print(f"\n[*] Querying YouTrack project '{YOUTRACK_PROJECT_ID}' at {YOUTRACK_BASE_URL}...")
           query = urllib.parse.quote(f"project: {YOUTRACK_PROJECT_ID} #Unresolved")
           url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields=idReadable,summary,description"
           yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
           
-          yt_issues = make_request(url, yt_headers) or []
+          yt_issues = make_request(url, yt_headers)
+          if yt_issues is None:
+              print("[-] Failed to query YouTrack REST API. Please check token permissions.")
+              sys.exit(1)
+
           print(f"[*] Found {len(yt_issues)} unresolved YouTrack issue(s).")
           if not yt_issues:
               sys.exit(0)
@@ -90,5 +102,5 @@ jobs:
               else:
                   print(f"[-] Failed to import {yt_id}")
 
-          print(f"[*] Sync complete. Imported {count} issue(s).")
+          print(f"\n[*] Sync complete. Successfully imported {count} issue(s).")
           EOF
