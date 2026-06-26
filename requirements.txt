@@ -1,2 +1,2 @@
 numpy
-pygame
+raylib>=6.0.0
