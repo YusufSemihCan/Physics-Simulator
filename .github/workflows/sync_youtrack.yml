@@ -97,6 +97,10 @@ jobs:
                   if match:
                       existing_issues_map[match.group(1)] = number
 
+          ms_url = f"https://api.github.com/repos/{GITHUB_REPO}/milestones?state=all&per_page=100"
+          gh_milestones = make_request(ms_url, gh_headers) or []
+          milestones_map = {m.get("title"): m.get("number") for m in gh_milestones if m.get("title") and m.get("number")}
+
           count = 0
           for issue in yt_issues:
               yt_id = issue.get("idReadable")
@@ -205,10 +209,23 @@ jobs:
               type_tag = f"[{issue_type.upper()}] " if issue_type != "Task" else ""
               gh_title = f"{type_tag}[{yt_id}] {summary}"
 
+              target_milestone_num = None
+              if sprints:
+                  sprint_title = sprints[0]
+                  if sprint_title not in milestones_map:
+                      print(f"[*] Auto-creating GitHub Milestone for Sprint: '{sprint_title}'...")
+                      post_ms_url = f"https://api.github.com/repos/{GITHUB_REPO}/milestones"
+                      new_ms = make_request(post_ms_url, gh_headers, method="POST", data={"title": sprint_title, "state": "open"})
+                      if new_ms and new_ms.get("number"):
+                          milestones_map[sprint_title] = new_ms.get("number")
+                  target_milestone_num = milestones_map.get(sprint_title)
+
               target_gh_state = "closed" if is_resolved else "open"
               payload = {"title": gh_title, "body": full_body, "state": target_gh_state}
               if target_gh_assignee:
                   payload["assignees"] = [target_gh_assignee]
+              if target_milestone_num:
+                  payload["milestone"] = target_milestone_num
 
               target_url = ""
               method = "POST"
