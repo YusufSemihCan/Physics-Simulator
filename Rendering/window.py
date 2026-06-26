@@ -1,45 +1,6 @@
 import pyray as pr
-
-class Colors:
-    # Curated HSL dark mode color palette formatted as Raylib hardware GPU Color structs
-    BACKGROUND = pr.Color(24, 26, 31, 255)
-    GRID_MAJOR = pr.Color(65, 71, 84, 255)
-    GRID_MINOR = pr.Color(40, 44, 52, 255)
-    AXIS_X = pr.Color(224, 108, 117, 255)
-    AXIS_Y = pr.Color(152, 195, 121, 255)
-    AXIS_Z = pr.Color(97, 175, 239, 255)
-    SHAPE_ACCENT = pr.Color(229, 192, 123, 255)
-    TEXT = pr.Color(209, 213, 219, 255)
-
-
-class GridRenderer:
-    def __init__(self, slices: int = 30, spacing: float = 1.0):
-        self.slices = slices
-        self.spacing = spacing
-        self.show_grid = True
-
-    def draw_3d(self) -> None:
-        if not self.show_grid:
-            return
-        # Hardware GPU accelerated 3D floor grid rendering
-        pr.draw_grid(self.slices, self.spacing)
-
-    def draw_2d(self, screen_width: int, screen_height: int) -> None:
-        if not self.show_grid:
-            return
-        # Calculate dynamic 2D Cartesian quadrant divisions relative to viewport resolution
-        center_x, center_y = screen_width // 2, screen_height // 2
-        cell_size = 50
-
-        for x in range(center_x % cell_size, screen_width, cell_size):
-            pr.draw_line(x, 0, x, screen_height, Colors.GRID_MINOR)
-        for y in range(center_y % cell_size, screen_height, cell_size):
-            pr.draw_line(0, y, screen_width, y, Colors.GRID_MINOR)
-
-        # Highlight origin coordinate axes (X=Red, Y=Green)
-        pr.draw_line(0, center_y, screen_width, center_y, Colors.AXIS_X)
-        pr.draw_line(center_x, 0, center_x, screen_height, Colors.AXIS_Y)
-
+from rendering.colors import Colors
+from rendering.grid import GridRenderer
 
 class SimulationRenderer:
     def __init__(self, width: int = 1280, height: int = 720, title: str = "Antigravity Raylib Physics Engine"):
@@ -83,7 +44,7 @@ class SimulationRenderer:
             pr.begin_mode_3d(self.camera_3d)
             self.grid.draw_3d()
 
-            # Render demonstration 3D rigid body sphere at origin (PHY-20)
+            # Render demonstration 3D rigid body sphere at origin
             pr.draw_sphere(pr.Vector3(0.0, 1.0, 0.0), 1.0, Colors.SHAPE_ACCENT)
             pr.draw_sphere_wires(pr.Vector3(0.0, 1.0, 0.0), 1.0, 16, 16, Colors.AXIS_X)
             pr.end_mode_3d()

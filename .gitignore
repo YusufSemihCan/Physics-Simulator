@@ -146,5 +146,6 @@ cython_debug/
 *.sln
 *.sw?
 
-
-
+# Personal developer mentorship notes (ignored by git)
+docs/Personal/
+docs/personal/
