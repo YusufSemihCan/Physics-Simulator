@@ -11,8 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      contents: read
 
     steps:
+      - name: Checkout repository commit history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history required for commit time tracking scan
+
       - name: Sync YouTrack to GitHub Issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -26,6 +32,7 @@ jobs:
           import json
           import os
           import re
+          import subprocess
           import sys
           import urllib.request
           import urllib.parse
@@ -64,7 +71,7 @@ jobs:
                   return None
 
           print(f"\n[*] Fetching ALL YouTrack issues for project 'PHY'...")
-          query = urllib.parse.quote("project: PHY")
+          query = urllib.parse.quote("project: PHY -Type: Swimlane")
           fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation)),links(direction,linkType(name),issues(idReadable,summary,resolved))"
           url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields={fields}"
           yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
@@ -81,7 +88,6 @@ jobs:
           gh_headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
           gh_issues = make_request(gh_url, gh_headers) or []
           
-          # Regex match ID like [PHY-11] across any title prefix (e.g. [EPIC] [PHY-10])
           existing_issues_map = {}
           for item in gh_issues:
               title = item.get("title", "")
@@ -96,7 +102,6 @@ jobs:
               yt_id = issue.get("idReadable")
               if not yt_id:
                   continue
-              active_yt_ids.add(yt_id)
               summary = issue.get("summary", "No Summary")
               desc = issue.get("description", "")
               is_resolved = bool(issue.get("resolved"))
@@ -135,9 +140,13 @@ jobs:
                   elif fname == "Spent time":
                       spent_time_str = fval.get("presentation", "0m")
 
+              # Ignore dummy swimlanes or header tickets
+              if issue_type.lower() == "swimlane" or "swimlane" in summary.lower():
+                  continue
+
+              active_yt_ids.add(yt_id)
               sprint_str = ", ".join(sprints) if sprints else "None"
               
-              # Extract Links Hierarchy (Epic Subtasks & Parent Epics)
               parent_epic_str = None
               subtasks_list = []
 
@@ -161,7 +170,6 @@ jobs:
                               s_done = "x" if sub.get("resolved") else " "
                               subtasks_list.append(f"* [{s_done}] **[{s_id}]** {s_sum}")
 
-              # Map YouTrack username to GitHub account
               target_gh_assignee = YT_TO_GH_USER.get(assignee_login) or YT_TO_GH_USER.get(assignee_name) or assignee_login
 
               assignee_display = assignee_name
@@ -198,7 +206,6 @@ jobs:
               body_parts.append(f"\n\n---\n*Synced automatically from YouTrack: [{yt_id}]*")
               full_body = "".join(body_parts)
               
-              # Smart Title Tagging (e.g. [EPIC] [PHY-10])
               type_tag = f"[{issue_type.upper()}] " if issue_type in ["Epic", "Feature", "Bug"] else ""
               gh_title = f"{type_tag}[{yt_id}] {summary}"
 
@@ -211,7 +218,7 @@ jobs:
               method = "POST"
               if yt_id in existing_issues_map:
                   gh_num = existing_issues_map[yt_id]
-                  print(f"[*] Syncing #{gh_num} ({yt_id}) -> title={gh_title[:45]}...")
+                  print(f"[*] Syncing #{gh_num} ({yt_id})...")
                   target_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{gh_num}"
                   method = "PATCH"
               else:
@@ -238,6 +245,40 @@ jobs:
                       "body": "> **[!] This ticket was permanently removed/deleted upstream in YouTrack.**"
                   }
                   make_request(del_url, gh_headers, method="PATCH", data=del_payload)
+
+          # Time Tracking Scanner: Parse git commit logs from last 6 hours
+          print("\n[*] Scanning recent git commits for #time tracking tags...")
+          try:
+              git_out = subprocess.check_output(
+                  ['git', 'log', '--all', '--since=6 hours ago', '--pretty=format:%H|%s'],
+                  text=True, errors='ignore'
+              )
+              for line in git_out.splitlines():
+                  if "|" not in line:
+                      continue
+                  sha, msg = line.split("|", 1)
+                  t_match = re.search(r'\[([A-Z]+-\d+)\]', msg)
+                  time_match = re.search(r'#(?:work\s+)?(\d+h(?:\s*\d+m)?|\d+m)', msg)
+                  if t_match and time_match:
+                      issue_id = t_match.group(1)
+                      duration_str = time_match.group(1)
+                      short_sha = sha[:7]
+                      print(f"    [*] Found commit {short_sha} for {issue_id}: #{duration_str}")
+
+                      wi_url = f"{YOUTRACK_BASE_URL}/api/issues/{issue_id}/timeTracking/workItems?fields=text"
+                      existing_wis = make_request(wi_url, yt_headers) or []
+                      already_logged = any(short_sha in (wi.get("text") or "") for wi in existing_wis)
+
+                      if not already_logged:
+                          print(f"        [+] Logging {duration_str} to {issue_id} in YouTrack...")
+                          post_wi_url = f"{YOUTRACK_BASE_URL}/api/issues/{issue_id}/timeTracking/workItems"
+                          wi_payload = {
+                              "duration": {"presentation": duration_str},
+                              "text": f"Commit {short_sha}: {msg}"
+                          }
+                          make_request(post_wi_url, yt_headers, method="POST", data=wi_payload)
+          except Exception as e:
+              print(f"[-] Time scanner non-fatal notice: {e}")
 
           print(f"\n[*] Sync complete. Successfully processed {count} issue(s).")
           EOF
