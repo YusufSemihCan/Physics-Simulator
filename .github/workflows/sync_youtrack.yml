@@ -72,7 +72,7 @@ jobs:
 
           print(f"\n[*] Fetching ALL YouTrack issues for project 'PHY'...")
           query = urllib.parse.quote("project: PHY")
-          fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation)),links(direction,linkType(name),issues(idReadable,summary,resolved))"
+          fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation,releaseDate)),links(direction,linkType(name),issues(idReadable,summary,resolved))"
           url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields={fields}"
           yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
           
@@ -136,16 +136,16 @@ jobs:
                       state = fval.get("name", state)
                   elif fname == "Sprints":
                       if isinstance(fval, list):
-                          sprints = [s.get("name") for s in fval if s.get("name")]
+                          sprints = [(s.get("name"), s.get("releaseDate")) for s in fval if s.get("name")]
                       elif isinstance(fval, dict):
-                          sprints = [fval.get("name")]
+                          sprints = [(fval.get("name"), fval.get("releaseDate"))]
                   elif fname == "Estimation":
                       estimation_str = fval.get("presentation", "None")
                   elif fname == "Spent time":
                       spent_time_str = fval.get("presentation", "0m")
 
               active_yt_ids.add(yt_id)
-              sprint_str = ", ".join(sprints) if sprints else "None"
+              sprint_str = ", ".join([s[0] for s in sprints]) if sprints else "None"
               
               parent_epic_str = None
               subtasks_list = []
@@ -211,13 +211,27 @@ jobs:
 
               target_milestone_num = None
               if sprints:
-                  sprint_title = sprints[0]
+                  sprint_title, finish_ms = sprints[0]
+                  ms_due_iso = None
+                  if finish_ms:
+                      import datetime
+                      ms_due_iso = datetime.datetime.fromtimestamp(finish_ms / 1000, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
                   if sprint_title not in milestones_map:
-                      print(f"[*] Auto-creating GitHub Milestone for Sprint: '{sprint_title}'...")
+                      print(f"[*] Auto-creating GitHub Milestone: '{sprint_title}' (Due: {ms_due_iso})...")
                       post_ms_url = f"https://api.github.com/repos/{GITHUB_REPO}/milestones"
-                      new_ms = make_request(post_ms_url, gh_headers, method="POST", data={"title": sprint_title, "state": "open"})
+                      ms_payload = {"title": sprint_title, "state": "open"}
+                      if ms_due_iso:
+                          ms_payload["due_on"] = ms_due_iso
+                      new_ms = make_request(post_ms_url, gh_headers, method="POST", data=ms_payload)
                       if new_ms and new_ms.get("number"):
                           milestones_map[sprint_title] = new_ms.get("number")
+                  else:
+                      ms_num = milestones_map.get(sprint_title)
+                      if ms_due_iso and ms_num:
+                          patch_ms_url = f"https://api.github.com/repos/{GITHUB_REPO}/milestones/{ms_num}"
+                          make_request(patch_ms_url, gh_headers, method="PATCH", data={"due_on": ms_due_iso})
+
                   target_milestone_num = milestones_map.get(sprint_title)
 
               target_gh_state = "closed" if is_resolved else "open"
