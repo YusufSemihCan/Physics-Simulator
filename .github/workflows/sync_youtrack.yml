@@ -140,9 +140,6 @@ jobs:
                   elif fname == "Spent time":
                       spent_time_str = fval.get("presentation", "0m")
 
-              if issue_type.lower() == "swimlane" or "swimlane" in summary.lower():
-                  continue
-
               active_yt_ids.add(yt_id)
               sprint_str = ", ".join(sprints) if sprints else "None"
               
@@ -205,7 +202,7 @@ jobs:
               body_parts.append(f"\n\n---\n*Synced automatically from YouTrack: [{yt_id}]*")
               full_body = "".join(body_parts)
               
-              type_tag = f"[{issue_type.upper()}] " if issue_type in ["Epic", "Feature", "Bug"] else ""
+              type_tag = f"[{issue_type.upper()}] " if issue_type != "Task" else ""
               gh_title = f"{type_tag}[{yt_id}] {summary}"
 
               target_gh_state = "closed" if is_resolved else "open"
