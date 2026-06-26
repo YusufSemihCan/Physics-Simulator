@@ -30,6 +30,14 @@ jobs:
           import urllib.parse
           import urllib.error
 
+          # Username Bridge: YouTrack login/name -> GitHub collaborator username (NO EMAILS)
+          YT_TO_GH_USER = {
+              "admin": "geterktt",
+              "geterktt": "geterktt",
+              "YusufSemihCan": "YusufSemihCan",
+              "Yusuf Semih Can": "YusufSemihCan"
+          }
+
           YOUTRACK_BASE_URL = (os.environ.get("YT_BASE") or os.environ.get("YT_BASE_VAR") or "").rstrip('/')
           YOUTRACK_TOKEN = os.environ.get("YT_TOKEN") or os.environ.get("YT_TOKEN_VAR") or ""
           GITHUB_REPO = os.environ.get("GITHUB_REPO", "")
@@ -56,7 +64,7 @@ jobs:
 
           print(f"\n[*] Fetching ALL YouTrack issues for project 'PHY'...")
           query = urllib.parse.quote("project: PHY")
-          fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,email))"
+          fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation))"
           url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields={fields}"
           yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
           
@@ -92,12 +100,13 @@ jobs:
               comments = issue.get("comments", [])
               
               assignee_login = None
-              assignee_email = None
               assignee_name = "Unassigned"
               priority = "Normal"
               issue_type = "Task"
               state = "Resolved" if is_resolved else "In Progress"
               sprints = []
+              estimation_str = "None"
+              spent_time_str = "0m"
 
               for field in issue.get("customFields", []):
                   fname = field.get("name")
@@ -107,7 +116,6 @@ jobs:
                   if fname == "Assignee":
                       assignee_name = fval.get("name", "Unknown")
                       assignee_login = fval.get("login")
-                      assignee_email = fval.get("email")
                   elif fname == "Priority":
                       priority = fval.get("name", "Normal")
                   elif fname == "Type":
@@ -119,21 +127,27 @@ jobs:
                           sprints = [s.get("name") for s in fval if s.get("name")]
                       elif isinstance(fval, dict):
                           sprints = [fval.get("name")]
+                  elif fname == "Estimation":
+                      estimation_str = fval.get("presentation", "None")
+                  elif fname == "Spent time":
+                      spent_time_str = fval.get("presentation", "0m")
 
               sprint_str = ", ".join(sprints) if sprints else "None"
               
+              # Map YouTrack username to GitHub account (NO EMAILS)
+              target_gh_assignee = YT_TO_GH_USER.get(assignee_login) or YT_TO_GH_USER.get(assignee_name) or assignee_login
+
               assignee_display = assignee_name
-              if assignee_email and assignee_login:
-                  assignee_display = f"{assignee_name} (`{assignee_email}` | @{assignee_login})"
-              elif assignee_email:
-                  assignee_display = f"{assignee_name} (`{assignee_email}`)"
-              elif assignee_login:
-                  assignee_display = f"{assignee_name} (@{assignee_login})"
+              if target_gh_assignee and target_gh_assignee != assignee_name:
+                  assignee_display = f"{assignee_name} (@{target_gh_assignee})"
+              elif target_gh_assignee:
+                  assignee_display = f"@{target_gh_assignee}"
 
               header_box = (
-                  f"> **YouTrack Issue Metadata:**\n"
+                  f"> **YouTrack Ticket Metadata:**\n"
                   f"> * **Status:** `{state}` | **Type:** `{issue_type}` | **Priority:** `{priority}`\n"
-                  f"> * **Assignee:** {assignee_display} | **Sprint:** `{sprint_str}`\n\n"
+                  f"> * **Assignee:** {assignee_display} | **Sprint:** `{sprint_str}`\n"
+                  f"> * **Time Spent:** `{spent_time_str}` *(Est. `{estimation_str}`)*\n\n"
               )
 
               body_parts = [header_box, desc or "*(No description provided)*"]
@@ -151,14 +165,14 @@ jobs:
               
               target_gh_state = "closed" if is_resolved else "open"
               payload = {"title": f"[{yt_id}] {summary}", "body": full_body, "state": target_gh_state}
-              if assignee_login:
-                  payload["assignees"] = [assignee_login]
+              if target_gh_assignee:
+                  payload["assignees"] = [target_gh_assignee]
 
               target_url = ""
               method = "POST"
               if yt_id in existing_issues_map:
                   gh_num = existing_issues_map[yt_id]
-                  print(f"[*] Syncing #{gh_num} ({yt_id}) -> state={target_gh_state}...")
+                  print(f"[*] Syncing #{gh_num} ({yt_id}) -> time={spent_time_str}/{estimation_str}...")
                   target_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{gh_num}"
                   method = "PATCH"
               else:
