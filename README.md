@@ -1,6 +1,6 @@
 # Educational Physics Simulator
 
-Welcome to the **Educational Physics Simulator**! This project is an open-source, educational physics engine and simulation environment built from scratch in Python. It is designed to help students, educators, and developers visualize, interact with, and learn about core physics and mathematics concepts.
+This project is an educational physics engine and simulation environment built from scratch in Python. It is designed to help students, educators, and developers visualize, interact with, and learn about core physics and mathematics concepts.
 
 One of the project's foundational design goals is a strict separation of concerns between physics computation and visual presentation. This modularity allows the core physics module to remain lightweight, clean, and easily portable to different rendering frameworks or game engines in the future.
 
@@ -12,7 +12,6 @@ One of the project's foundational design goals is a strict separation of concern
 * **Vector Mathematics**: Powered by **NumPy** for fast, clean, and readable vector and matrix operations.
 * **Pygame Visualizer**: A lightweight, responsive rendering loop in **Pygame** to observe simulations in real-time.
 * **Educational Codebase**: Built with readability in mind—ideal for learning collision response, forces, friction, and integration algorithms.
-* **Future-Proof**: Modular design enables wrapping the core engine for integration with standard game engines (like Unity, Godot, or Unreal) or custom renderers.
 
 ---
 
