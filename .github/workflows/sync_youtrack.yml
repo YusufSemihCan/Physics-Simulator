@@ -71,7 +71,7 @@ jobs:
                   return None
 
           print(f"\n[*] Fetching ALL YouTrack issues for project 'PHY'...")
-          query = urllib.parse.quote("project: PHY -Type: Swimlane")
+          query = urllib.parse.quote("project: PHY")
           fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation)),links(direction,linkType(name),issues(idReadable,summary,resolved))"
           url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields={fields}"
           yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
