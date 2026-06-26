@@ -140,7 +140,6 @@ jobs:
                   elif fname == "Spent time":
                       spent_time_str = fval.get("presentation", "0m")
 
-              # Ignore dummy swimlanes or header tickets
               if issue_type.lower() == "swimlane" or "swimlane" in summary.lower():
                   continue
 
@@ -218,11 +217,9 @@ jobs:
               method = "POST"
               if yt_id in existing_issues_map:
                   gh_num = existing_issues_map[yt_id]
-                  print(f"[*] Syncing #{gh_num} ({yt_id})...")
                   target_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{gh_num}"
                   method = "PATCH"
               else:
-                  print(f"[*] Creating new GitHub issue for {yt_id}...")
                   target_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues"
 
               res = make_request(target_url, gh_headers, method=method, data=payload)
@@ -237,7 +234,6 @@ jobs:
           # Cleanup: Handle permanently deleted issues in YouTrack
           for old_id, gh_num in existing_issues_map.items():
               if old_id not in active_yt_ids:
-                  print(f"[*] Flagging permanently deleted ticket #{gh_num} ({old_id})...")
                   del_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{gh_num}"
                   del_payload = {
                       "state": "closed",
@@ -246,8 +242,8 @@ jobs:
                   }
                   make_request(del_url, gh_headers, method="PATCH", data=del_payload)
 
-          # Time Tracking Scanner: Parse git commit logs from last 6 hours
-          print("\n[*] Scanning recent git commits for #time tracking tags...")
+          # Master VCS Command Engine: Parse git commit logs via POST /api/commands
+          print("\n[*] Scanning recent git commits for YouTrack commands (#time / state)...")
           try:
               git_out = subprocess.check_output(
                   ['git', 'log', '--all', '--since=6 hours ago', '--pretty=format:%H|%s'],
@@ -263,22 +259,30 @@ jobs:
                       issue_id = t_match.group(1)
                       duration_str = time_match.group(1)
                       short_sha = sha[:7]
-                      print(f"    [*] Found commit {short_sha} for {issue_id}: #{duration_str}")
 
-                      wi_url = f"{YOUTRACK_BASE_URL}/api/issues/{issue_id}/timeTracking/workItems?fields=text"
-                      existing_wis = make_request(wi_url, yt_headers) or []
-                      already_logged = any(short_sha in (wi.get("text") or "") for wi in existing_wis)
+                      # Check existing comments/work to avoid double logging
+                      issue_url = f"{YOUTRACK_BASE_URL}/api/issues/{issue_id}/comments?fields=text"
+                      existing_comments = make_request(issue_url, yt_headers) or []
+                      already_processed = any(short_sha in (c.get("text") or "") for c in existing_comments)
 
-                      if not already_logged:
-                          print(f"        [+] Logging {duration_str} to {issue_id} in YouTrack...")
-                          post_wi_url = f"{YOUTRACK_BASE_URL}/api/issues/{issue_id}/timeTracking/workItems"
-                          wi_payload = {
-                              "duration": {"presentation": duration_str},
-                              "text": f"Commit {short_sha}: {msg}"
+                      if not already_processed:
+                          print(f"    [+] Executing YouTrack command for commit {short_sha} on {issue_id}...")
+                          
+                          cmd_parts = []
+                          if any(w in msg.lower() for w in ["fix", "complete", "close", "done", "resolved"]):
+                              cmd_parts.append("state Done")
+                          cmd_parts.append(f"add work {duration_str}")
+                          
+                          full_cmd = " ".join(cmd_parts)
+                          cmd_url = f"{YOUTRACK_BASE_URL}/api/commands"
+                          cmd_payload = {
+                              "query": full_cmd,
+                              "issues": [{"idReadable": issue_id}],
+                              "comment": f"Commit {short_sha}: {msg}"
                           }
-                          make_request(post_wi_url, yt_headers, method="POST", data=wi_payload)
+                          make_request(cmd_url, yt_headers, method="POST", data=cmd_payload)
           except Exception as e:
-              print(f"[-] Time scanner non-fatal notice: {e}")
+              print(f"[-] Command engine notice: {e}")
 
           print(f"\n[*] Sync complete. Successfully processed {count} issue(s).")
           EOF
