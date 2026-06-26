@@ -25,6 +25,7 @@ jobs:
           python3 - << 'EOF'
           import json
           import os
+          import re
           import sys
           import urllib.request
           import urllib.parse
@@ -64,7 +65,7 @@ jobs:
 
           print(f"\n[*] Fetching ALL YouTrack issues for project 'PHY'...")
           query = urllib.parse.quote("project: PHY")
-          fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation))"
+          fields = "idReadable,summary,description,resolved,comments(author(name),text),customFields(name,value(name,login,presentation)),links(direction,linkType(name),issues(idReadable,summary,resolved))"
           url = f"{YOUTRACK_BASE_URL}/api/issues?query={query}&fields={fields}"
           yt_headers = {"Authorization": f"Bearer {YOUTRACK_TOKEN}", "Accept": "application/json"}
           
@@ -80,13 +81,15 @@ jobs:
           gh_headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
           gh_issues = make_request(gh_url, gh_headers) or []
           
+          # Regex match ID like [PHY-11] across any title prefix (e.g. [EPIC] [PHY-10])
           existing_issues_map = {}
           for item in gh_issues:
               title = item.get("title", "")
               number = item.get("number")
-              if title.startswith("[") and "]" in title and number:
-                  yt_id_match = title[1:title.index("]")]
-                  existing_issues_map[yt_id_match] = number
+              if number:
+                  match = re.search(r'\[([A-Z]+-\d+)\]', title)
+                  if match:
+                      existing_issues_map[match.group(1)] = number
 
           count = 0
           for issue in yt_issues:
@@ -134,7 +137,31 @@ jobs:
 
               sprint_str = ", ".join(sprints) if sprints else "None"
               
-              # Map YouTrack username to GitHub account (NO EMAILS)
+              # Extract Links Hierarchy (Epic Subtasks & Parent Epics)
+              parent_epic_str = None
+              subtasks_list = []
+
+              for link in issue.get("links", []):
+                  ltype = (link.get("linkType") or {}).get("name")
+                  ldir = link.get("direction")
+                  linked_issues = link.get("issues", [])
+                  if not linked_issues:
+                      continue
+
+                  if ltype == "Subtask":
+                      if ldir == "INWARD":
+                          parent = linked_issues[0]
+                          p_id = parent.get("idReadable", "")
+                          p_sum = parent.get("summary", "")
+                          parent_epic_str = f"`[{p_id}]` {p_sum}"
+                      elif ldir == "OUTWARD":
+                          for sub in linked_issues:
+                              s_id = sub.get("idReadable", "")
+                              s_sum = sub.get("summary", "")
+                              s_done = "x" if sub.get("resolved") else " "
+                              subtasks_list.append(f"* [{s_done}] **[{s_id}]** {s_sum}")
+
+              # Map YouTrack username to GitHub account
               target_gh_assignee = YT_TO_GH_USER.get(assignee_login) or YT_TO_GH_USER.get(assignee_name) or assignee_login
 
               assignee_display = assignee_name
@@ -143,14 +170,22 @@ jobs:
               elif target_gh_assignee:
                   assignee_display = f"@{target_gh_assignee}"
 
-              header_box = (
-                  f"> **YouTrack Ticket Metadata:**\n"
-                  f"> * **Status:** `{state}` | **Type:** `{issue_type}` | **Priority:** `{priority}`\n"
-                  f"> * **Assignee:** {assignee_display} | **Sprint:** `{sprint_str}`\n"
-                  f"> * **Time Spent:** `{spent_time_str}` *(Est. `{estimation_str}`)*\n\n"
-              )
+              meta_lines = [
+                  f"> **YouTrack Ticket Metadata:**\n",
+                  f"> * **Status:** `{state}` | **Type:** `{issue_type}` | **Priority:** `{priority}`\n",
+                  f"> * **Assignee:** {assignee_display} | **Sprint:** `{sprint_str}`\n",
+                  f"> * **Time Spent:** `{spent_time_str}` *(Est. `{estimation_str}`)*\n"
+              ]
+              if parent_epic_str:
+                  meta_lines.append(f"> * **Parent Epic:** {parent_epic_str}\n")
 
-              body_parts = [header_box, desc or "*(No description provided)*"]
+              header_box = "".join(meta_lines) + "\n"
+
+              body_parts = [header_box]
+              if subtasks_list:
+                  body_parts.append("### Subtasks Checklist:\n" + "\n".join(subtasks_list) + "\n\n---\n")
+
+              body_parts.append(desc or "*(No description provided)*")
               
               if comments:
                   body_parts.append("\n\n---\n### Discussion Comments:")
@@ -163,8 +198,12 @@ jobs:
               body_parts.append(f"\n\n---\n*Synced automatically from YouTrack: [{yt_id}]*")
               full_body = "".join(body_parts)
               
+              # Smart Title Tagging (e.g. [EPIC] [PHY-10])
+              type_tag = f"[{issue_type.upper()}] " if issue_type in ["Epic", "Feature", "Bug"] else ""
+              gh_title = f"{type_tag}[{yt_id}] {summary}"
+
               target_gh_state = "closed" if is_resolved else "open"
-              payload = {"title": f"[{yt_id}] {summary}", "body": full_body, "state": target_gh_state}
+              payload = {"title": gh_title, "body": full_body, "state": target_gh_state}
               if target_gh_assignee:
                   payload["assignees"] = [target_gh_assignee]
 
@@ -172,7 +211,7 @@ jobs:
               method = "POST"
               if yt_id in existing_issues_map:
                   gh_num = existing_issues_map[yt_id]
-                  print(f"[*] Syncing #{gh_num} ({yt_id}) -> time={spent_time_str}/{estimation_str}...")
+                  print(f"[*] Syncing #{gh_num} ({yt_id}) -> title={gh_title[:45]}...")
                   target_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{gh_num}"
                   method = "PATCH"
               else:
