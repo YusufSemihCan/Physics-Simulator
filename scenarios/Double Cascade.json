@@ -1,0 +1,62 @@
+{
+    "name": "Double Cascade",
+    "description": "Two spheres falling from staggered elevations.",
+    "shapes": [
+        {
+            "shape_id": "s_high",
+            "shape_type": "sphere",
+            "pos": [
+                -3.0,
+                11.0,
+                0.0
+            ],
+            "vel": [
+                1.5,
+                0.0,
+                0.0
+            ],
+            "size": [
+                1.600000023841858,
+                1.600000023841858,
+                1.600000023841858
+            ],
+            "radius": 0.8,
+            "color": [
+                86,
+                182,
+                194,
+                255
+            ],
+            "mass": 1.6,
+            "restitution": 0.85
+        },
+        {
+            "shape_id": "s_low",
+            "shape_type": "sphere",
+            "pos": [
+                3.0,
+                6.0,
+                0.0
+            ],
+            "vel": [
+                -1.5,
+                0.0,
+                0.0
+            ],
+            "size": [
+                2.4000000953674316,
+                2.4000000953674316,
+                2.4000000953674316
+            ],
+            "radius": 1.2,
+            "color": [
+                198,
+                120,
+                221,
+                255
+            ],
+            "mass": 2.4,
+            "restitution": 0.75
+        }
+    ]
+}

@@ -1,0 +1,31 @@
+name: Antigravity Unit Tests
+
+# workflow_dispatch allows manual execution via the "Run workflow" button on GitHub Actions.
+# Uncomment 'push' and 'pull_request' below when you want tests to run automatically on commit!
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyray
+
+    - name: Run Simulation & Graphics Unit Tests
+      run: |
+        python -m unittest discover -s "Unit tests" -p "test_*.py"

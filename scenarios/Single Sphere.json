@@ -1,0 +1,34 @@
+{
+    "name": "Single Sphere",
+    "description": "A demonstration bouncing sphere under normal gravity.",
+    "shapes": [
+        {
+            "shape_id": "ball_1",
+            "shape_type": "sphere",
+            "pos": [
+                0.0,
+                8.0,
+                0.0
+            ],
+            "vel": [
+                3.0,
+                0.0,
+                2.0
+            ],
+            "size": [
+                2.0,
+                2.0,
+                2.0
+            ],
+            "radius": 1.0,
+            "color": [
+                229,
+                192,
+                123,
+                255
+            ],
+            "mass": 2.0,
+            "restitution": 0.82
+        }
+    ]
+}
