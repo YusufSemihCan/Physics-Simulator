@@ -1,6 +1,6 @@
 import sys
 import pyray as pr
-from rendering.window import SimulationRenderer
+from graphics.rendering.window import SimulationRenderer
 
 def main() -> None:
     # Initialize Raylib hardware OpenGL window and camera subsystem

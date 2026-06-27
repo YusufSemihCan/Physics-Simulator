@@ -17,3 +17,19 @@ flowchart LR
     Interp --> Render["Render Visual Frame (Raylib GPU)"]
     Render --> End["Frame End / Wait Next"]
 ```
+
+---
+
+## 📋 Future Implementation Plan
+
+### Deterministic Physics Core
+* [ ] **Rigid Body State Definition (`Physics/body.py`)**: Define `RigidBody` storing `mass`, `position`, `velocity`, `acceleration`, and `restitution` (elasticity).
+* [ ] **Fixed Timestep Accumulator**: In `SimulationRenderer`, track time accumulator:
+  ```python
+  FIXED_DT = 1.0 / 60.0
+  self.accumulator += pr.get_frame_time()
+  while self.accumulator >= FIXED_DT:
+      physics_engine.step(FIXED_DT)
+      self.accumulator -= FIXED_DT
+  ```
+* [ ] **Numerical Integration Solvers**: Implement Semi-Implicit Euler for stable projectile collisions, with an upgrade path to Verlet integration for smooth orbital mechanics.

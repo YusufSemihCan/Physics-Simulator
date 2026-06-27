@@ -50,14 +50,18 @@ flowchart TD
 
 ```
 Physics-Simulator/
-├── Physics/              # Core physics computations (no graphics dependencies)
-├── Rendering/            # Raylib 3D/2D GPU Visualization & display loops
-│   ├── window.py         # SimulationRenderer & camera management
-│   ├── grid.py           # Coordinate grid & axis visualization
-│   └── colors.py         # Curated educational UI color palette
-├── docs/diagrams/        # Detailed educational architecture flowcharts
-├── README.md             # Project documentation (this file)
-└── main.py               # Main orchestrator & entry point
+├── Physics/                  # Core deterministic physics computations
+├── Graphics/                 # Parent folder for all visual & interaction layers
+│   ├── Rendering/            # Raylib 3D/2D GPU Viewport & camera drawing
+│   │   ├── window.py
+│   │   ├── grid.py
+│   │   └── colors.py
+│   └── UI/                   # Dedicated interactive user interface elements
+│       ├── __init__.py
+│       └── elements.py       # Panel, Slider, Toggle, and Button widgets
+├── docs/diagrams/            # Master architectural flowcharts & implementation plans
+├── README.md                 # Project documentation (this file)
+└── main.py                   # Main orchestrator & entry point
 ```
 
 ---

@@ -10,3 +10,9 @@ class Colors:
     AXIS_Z = pr.Color(97, 175, 239, 255)
     SHAPE_ACCENT = pr.Color(229, 192, 123, 255)
     TEXT = pr.Color(209, 213, 219, 255)
+    
+    # UI Element specific colors
+    UI_PANEL = pr.Color(33, 37, 43, 230)
+    UI_BORDER = pr.Color(75, 82, 99, 255)
+    UI_HOVER = pr.Color(85, 95, 115, 255)
+    UI_ACTIVE = pr.Color(97, 175, 239, 255)
