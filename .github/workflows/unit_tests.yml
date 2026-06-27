@@ -1,13 +1,12 @@
 name: Antigravity Unit Tests
 
-# workflow_dispatch allows manual execution via the "Run workflow" button on GitHub Actions.
-# Uncomment 'push' and 'pull_request' below when you want tests to run automatically on commit!
+# Triggers automatically on push or pull request to any branch, and allows manual execution.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
 
 jobs:
   test:
