@@ -7,15 +7,13 @@ from Graphics.UI.ui_settings import SettingsScreen
 
 class SimulationRenderer:
     def __init__(self, width: int = 1280, height: int = 720, title: str = "Antigravity Raylib Physics Engine"):
-        # Configure OpenGL window flags before initialization (resizable + maximized + high DPI + MSAA 4X anti-aliasing)
+        # Configure OpenGL window flags before initialization (resizable + MSAA 4X anti-aliasing)
         pr.set_config_flags(
             pr.ConfigFlags.FLAG_WINDOW_RESIZABLE | 
-            pr.ConfigFlags.FLAG_WINDOW_MAXIMIZED | 
-            pr.ConfigFlags.FLAG_WINDOW_HIGHDPI | 
             pr.ConfigFlags.FLAG_MSAA_4X_HINT
         )
         pr.init_window(width, height, title)
-        pr.set_exit_key(0) # Disable automatic ESC close to allow menu navigation
+        pr.set_exit_key(pr.KeyboardKey.KEY_NULL) # Disable automatic ESC close to allow menu navigation
         pr.set_target_fps(60)
 
         # Configure 3D perspective orbital camera
