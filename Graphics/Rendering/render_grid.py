@@ -1,5 +1,5 @@
 import pyray as pr
-from graphics.rendering.colors import Colors
+from graphics.rendering.render_colors import Colors
 
 class GridRenderer:
     def __init__(self, slices: int = 30, spacing: float = 1.0):

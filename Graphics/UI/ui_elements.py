@@ -1,6 +1,6 @@
 from typing import Callable, Optional
 import pyray as pr
-from graphics.rendering.colors import Colors
+from graphics.rendering.render_colors import Colors
 
 class Panel:
     """A glassmorphism-inspired semi-transparent container panel for UI elements."""

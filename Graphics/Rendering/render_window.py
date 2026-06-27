@@ -1,7 +1,9 @@
 import pyray as pr
-from graphics.rendering.colors import Colors
-from graphics.rendering.grid import GridRenderer
-from graphics.ui.elements import Panel, Slider, Toggle, Button
+from graphics.rendering.render_colors import Colors
+from graphics.rendering.render_grid import GridRenderer
+from graphics.ui.ui_elements import Panel, Slider, Toggle, Button
+from graphics.ui.ui_menu import AppScreen, MainMenuScreen
+from graphics.ui.ui_settings import SettingsScreen
 
 class SimulationRenderer:
     def __init__(self, width: int = 1280, height: int = 720, title: str = "Antigravity Raylib Physics Engine"):
@@ -13,6 +15,7 @@ class SimulationRenderer:
             pr.ConfigFlags.FLAG_MSAA_4X_HINT
         )
         pr.init_window(width, height, title)
+        pr.set_exit_key(0) # Disable automatic ESC close to allow menu navigation
         pr.set_target_fps(60)
 
         # Configure 3D perspective orbital camera
@@ -30,12 +33,32 @@ class SimulationRenderer:
         self.res_index = 0
 
         # Initialize educational UI sidebar panel and widgets
-        self.ui_panel = Panel(15, 65, 260, 210, "Physics Controls")
+        self.ui_panel = Panel(15, 65, 260, 255, "Physics Controls")
         self.slider_gravity = Slider(30, 115, 230, 12, "Gravity (m/s^2)", -20.0, 20.0, -9.81)
         self.toggle_grid = Toggle(30, 175, 18, "Show Grid Lines", True)
         self.btn_reset = Button(30, 220, 230, 36, "Reset Simulation")
+        self.btn_menu = Button(30, 265, 230, 36, "Main Menu")
+
+        # Initialize navigation screen states
+        self.current_screen = AppScreen.MAIN_MENU
+        self.main_menu = MainMenuScreen()
+        self.settings_screen = SettingsScreen(self)
+        self.should_quit = False
 
     def handle_input(self) -> None:
+        if self.current_screen == AppScreen.MAIN_MENU:
+            if pr.is_key_pressed(pr.KeyboardKey.KEY_ESCAPE):
+                self.should_quit = True
+            return
+        elif self.current_screen == AppScreen.SETTINGS:
+            if pr.is_key_pressed(pr.KeyboardKey.KEY_ESCAPE):
+                self.current_screen = AppScreen.MAIN_MENU
+            return
+        elif self.current_screen == AppScreen.SIMULATION:
+            if pr.is_key_pressed(pr.KeyboardKey.KEY_ESCAPE):
+                self.current_screen = AppScreen.MAIN_MENU
+                return
+
         # Poll hardware input queue for viewport mode switching or grid toggles
         if pr.is_key_pressed(pr.KeyboardKey.KEY_M):
             self.mode_3d = not self.mode_3d
@@ -68,10 +91,29 @@ class SimulationRenderer:
         self.grid.show_grid = self.toggle_grid.update_and_draw()
         if self.btn_reset.update_and_draw():
             print(f"[!] Reset Simulation clicked! Current Gravity: {gravity_val:.2f} m/s^2")
+        if self.btn_menu.update_and_draw():
+            self.current_screen = AppScreen.MAIN_MENU
 
     def render_frame(self) -> None:
         pr.begin_drawing()
         pr.clear_background(Colors.BACKGROUND)
+
+        if self.current_screen == AppScreen.MAIN_MENU:
+            next_screen = self.main_menu.update_and_draw()
+            if next_screen != AppScreen.MAIN_MENU:
+                if next_screen == AppScreen.QUIT:
+                    self.should_quit = True
+                else:
+                    self.current_screen = next_screen
+            pr.end_drawing()
+            return
+
+        if self.current_screen == AppScreen.SETTINGS:
+            next_screen = self.settings_screen.update_and_draw()
+            if next_screen != AppScreen.SETTINGS:
+                self.current_screen = next_screen
+            pr.end_drawing()
+            return
 
         if self.mode_3d:
             # Dispatch hardware GPU draw calls inside 3D camera perspective matrix
