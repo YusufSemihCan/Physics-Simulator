@@ -1,3 +1,4 @@
+import math
 from typing import Callable, Optional
 import pyray as pr
 from Graphics.Rendering.render_colors import Colors
@@ -118,3 +119,92 @@ class Toggle:
         pr.draw_text(self.label, int(self.rect.x + self.rect.width) + 10, int(self.rect.y + (self.rect.height - 14) / 2), 14, Colors.TEXT)
 
         return self.state
+
+
+class NodeSelector:
+    """An interactive multi-option selector with arrows and clickable nodes that flash options on hover."""
+    def __init__(self, x: int, y: int, width: int, label: str, options: list[str], current_index: int = 0):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.label = label
+        self.options = options
+        self.current_index = current_index
+
+    def update_and_draw(self) -> tuple[bool, int]:
+        changed = False
+        mouse_pos = pr.get_mouse_position()
+        left_click = pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
+
+        # Draw Setting Label on top left
+        pr.draw_text(self.label, self.x, self.y, 16, Colors.UI_ACTIVE)
+
+        # Left Arrow `<`
+        arrow_w, arrow_h = 36, 28
+        ay = self.y + 24
+        rect_left = pr.Rectangle(self.x, ay, arrow_w, arrow_h)
+        hov_left = pr.check_collision_point_rec(mouse_pos, rect_left)
+        if hov_left and left_click:
+            self.current_index = (self.current_index - 1) % len(self.options)
+            changed = True
+
+        bg_left = Colors.UI_ACTIVE if (hov_left and pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT)) else (Colors.UI_HOVER if hov_left else Colors.GRID_MAJOR)
+        pr.draw_rectangle_rounded(rect_left, 0.2, 4, bg_left)
+        pr.draw_rectangle_rounded_lines(rect_left, 0.2, 4, Colors.TEXT if hov_left else Colors.UI_BORDER)
+        pr.draw_text("<", int(self.x + 13), int(ay + 6), 16, Colors.TEXT)
+
+        # Right Arrow `>`
+        rx = self.x + self.width - arrow_w
+        rect_right = pr.Rectangle(rx, ay, arrow_w, arrow_h)
+        hov_right = pr.check_collision_point_rec(mouse_pos, rect_right)
+        if hov_right and left_click:
+            self.current_index = (self.current_index + 1) % len(self.options)
+            changed = True
+
+        bg_right = Colors.UI_ACTIVE if (hov_right and pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT)) else (Colors.UI_HOVER if hov_right else Colors.GRID_MAJOR)
+        pr.draw_rectangle_rounded(rect_right, 0.2, 4, bg_right)
+        pr.draw_rectangle_rounded_lines(rect_right, 0.2, 4, Colors.TEXT if hov_right else Colors.UI_BORDER)
+        pr.draw_text(">", int(rx + 13), int(ay + 6), 16, Colors.TEXT)
+
+        # Draw Nodes in between
+        num_nodes = len(self.options)
+        available_w = rx - (self.x + arrow_w)
+        spacing = available_w / (num_nodes + 1)
+
+        hovered_node_idx = -1
+        for i in range(num_nodes):
+            cx = int(self.x + arrow_w + spacing * (i + 1))
+            cy = int(ay + arrow_h / 2)
+            node_radius = 8.0
+
+            # Check collision with circle area
+            dist_sq = (mouse_pos.x - cx)**2 + (mouse_pos.y - cy)**2
+            hov_node = dist_sq <= (node_radius + 6)**2
+            if hov_node:
+                hovered_node_idx = i
+                node_radius = 11.0
+                if left_click:
+                    self.current_index = i
+                    changed = True
+
+            is_selected = (i == self.current_index)
+            color_node = Colors.UI_ACTIVE if is_selected else (Colors.TEXT if hov_node else Colors.GRID_MINOR)
+            pr.draw_circle(cx, cy, node_radius, color_node)
+            if is_selected or hov_node:
+                pr.draw_circle_lines(cx, cy, node_radius + 3, Colors.UI_ACTIVE if is_selected else Colors.TEXT)
+
+        # Display flashing/highlighted option text aligned to top right
+        display_idx = hovered_node_idx if hovered_node_idx != -1 else self.current_index
+        option_str = self.options[display_idx]
+        text_w = pr.measure_text(option_str, 16)
+        text_x = int(self.x + self.width - text_w)
+        
+        if hovered_node_idx != -1:
+            pulse = int((math.sin(pr.get_time() * 15) * 0.4 + 0.6) * 255)
+            text_color = pr.Color(255, 255, pulse, 255)
+            pr.draw_text(f"► {option_str}", text_x - 18, self.y, 16, text_color)
+        else:
+            pr.draw_text(option_str, text_x, self.y, 16, Colors.TEXT)
+
+        return changed, self.current_index
+
