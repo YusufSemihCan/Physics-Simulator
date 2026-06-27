@@ -11,7 +11,7 @@ class Panel:
     def draw(self) -> None:
         # Draw semi-transparent rounded background panel
         pr.draw_rectangle_rounded(self.rect, 0.1, 8, Colors.UI_PANEL)
-        pr.draw_rectangle_rounded_lines(self.rect, 0.1, 8, 2, Colors.UI_BORDER)
+        pr.draw_rectangle_rounded_lines(self.rect, 0.1, 8, Colors.UI_BORDER)
         if self.title:
             pr.draw_text(self.title, int(self.rect.x) + 15, int(self.rect.y) + 12, 18, Colors.TEXT)
             pr.draw_line(int(self.rect.x) + 15, int(self.rect.y) + 38, int(self.rect.x + self.rect.width) - 15, int(self.rect.y) + 38, Colors.UI_BORDER)
@@ -33,7 +33,7 @@ class Button:
         border_color = Colors.TEXT if is_hovered else Colors.UI_BORDER
 
         pr.draw_rectangle_rounded(self.rect, 0.2, 8, bg_color)
-        pr.draw_rectangle_rounded_lines(self.rect, 0.2, 8, 2, border_color)
+        pr.draw_rectangle_rounded_lines(self.rect, 0.2, 8, border_color)
 
         # Center text horizontally and vertically
         text_width = pr.measure_text(self.text, 16)
@@ -107,7 +107,7 @@ class Toggle:
         # Draw checkbox background
         bg_color = Colors.UI_ACTIVE if self.state else Colors.GRID_MINOR
         pr.draw_rectangle_rounded(self.rect, 0.2, 4, bg_color)
-        pr.draw_rectangle_rounded_lines(self.rect, 0.2, 4, 2, Colors.TEXT if is_hovered else Colors.UI_BORDER)
+        pr.draw_rectangle_rounded_lines(self.rect, 0.2, 4, Colors.TEXT if is_hovered else Colors.UI_BORDER)
 
         # Draw checkmark inside if active
         if self.state:

@@ -23,7 +23,7 @@ class SettingsScreen:
         py = (sh - panel_h) // 2
 
         pr.draw_rectangle_rounded(pr.Rectangle(px, py, panel_w, panel_h), 0.1, 8, Colors.UI_PANEL)
-        pr.draw_rectangle_rounded_lines(pr.Rectangle(px, py, panel_w, panel_h), 0.1, 8, 2, Colors.UI_BORDER)
+        pr.draw_rectangle_rounded_lines(pr.Rectangle(px, py, panel_w, panel_h), 0.1, 8, Colors.UI_BORDER)
 
         title = "DISPLAY & ENGINE SETTINGS"
         tw = pr.measure_text(title, 22)

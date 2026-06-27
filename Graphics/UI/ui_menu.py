@@ -27,7 +27,7 @@ class MainMenuScreen:
 
         # Draw semi-transparent glassmorphism menu panel
         pr.draw_rectangle_rounded(pr.Rectangle(px, py, panel_w, panel_h), 0.1, 8, Colors.UI_PANEL)
-        pr.draw_rectangle_rounded_lines(pr.Rectangle(px, py, panel_w, panel_h), 0.1, 8, 2, Colors.UI_BORDER)
+        pr.draw_rectangle_rounded_lines(pr.Rectangle(px, py, panel_w, panel_h), 0.1, 8, Colors.UI_BORDER)
 
         # Title & Subtitle
         title = "ANTIGRAVITY ENGINE"
