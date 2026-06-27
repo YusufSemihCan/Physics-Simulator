@@ -63,13 +63,8 @@ class SimulationRenderer:
         elif pr.is_key_pressed(pr.KeyboardKey.KEY_G):
             self.grid.show_grid = not self.grid.show_grid
             self.toggle_grid.state = self.grid.show_grid
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_F11):
-            pr.toggle_fullscreen()
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_B):
-            if hasattr(pr, "toggle_borderless_windowed"):
-                pr.toggle_borderless_windowed()
-            else:
-                pr.toggle_fullscreen()
+        elif pr.is_key_pressed(pr.KeyboardKey.KEY_F11) or pr.is_key_pressed(pr.KeyboardKey.KEY_B):
+            pr.toggle_borderless_windowed()
         elif pr.is_key_pressed(pr.KeyboardKey.KEY_R):
             self.res_index = (self.res_index + 1) % len(self.resolutions)
             w, h = self.resolutions[self.res_index]

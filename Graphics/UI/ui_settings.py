@@ -50,19 +50,15 @@ class SettingsScreen:
         if self.btn_mode.update_and_draw():
             self.mode_idx = (self.mode_idx + 1) % len(self.display_modes)
             mode_str = self.display_modes[self.mode_idx]
+            is_fs = pr.is_window_fullscreen() or pr.is_window_state(pr.ConfigFlags.FLAG_BORDERLESS_WINDOWED_MODE)
             if mode_str == "Windowed":
-                if pr.is_window_fullscreen():
-                    pr.toggle_fullscreen()
+                if is_fs:
+                    pr.toggle_borderless_windowed() if pr.is_window_state(pr.ConfigFlags.FLAG_BORDERLESS_WINDOWED_MODE) else pr.toggle_fullscreen()
                 w, h = self.renderer.resolutions[self.renderer.res_index]
                 pr.set_window_size(w, h)
-            elif mode_str == "Borderless Windowed":
-                if hasattr(pr, "toggle_borderless_windowed"):
+            elif mode_str in ("Borderless Windowed", "True Fullscreen"):
+                if not is_fs:
                     pr.toggle_borderless_windowed()
-                elif not pr.is_window_fullscreen():
-                    pr.toggle_fullscreen()
-            elif mode_str == "True Fullscreen":
-                if not pr.is_window_fullscreen():
-                    pr.toggle_fullscreen()
 
         if self.btn_back.update_and_draw():
             return AppScreen.MAIN_MENU
