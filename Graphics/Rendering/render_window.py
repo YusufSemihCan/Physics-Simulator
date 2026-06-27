@@ -1,9 +1,9 @@
 import pyray as pr
-from graphics.rendering.render_colors import Colors
-from graphics.rendering.render_grid import GridRenderer
-from graphics.ui.ui_elements import Panel, Slider, Toggle, Button
-from graphics.ui.ui_menu import AppScreen, MainMenuScreen
-from graphics.ui.ui_settings import SettingsScreen
+from Graphics.Rendering.render_colors import Colors
+from Graphics.Rendering.render_grid import GridRenderer
+from Graphics.UI.ui_elements import Panel, Slider, Toggle, Button
+from Graphics.UI.ui_menu import AppScreen, MainMenuScreen
+from Graphics.UI.ui_settings import SettingsScreen
 
 class SimulationRenderer:
     def __init__(self, width: int = 1280, height: int = 720, title: str = "Antigravity Raylib Physics Engine"):

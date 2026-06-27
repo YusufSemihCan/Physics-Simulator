@@ -1,7 +1,7 @@
 from enum import Enum
 import pyray as pr
-from graphics.rendering.render_colors import Colors
-from graphics.ui.ui_elements import Button
+from Graphics.Rendering.render_colors import Colors
+from Graphics.UI.ui_elements import Button
 
 class AppScreen(Enum):
     MAIN_MENU = 1

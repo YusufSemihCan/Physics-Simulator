@@ -1,7 +1,7 @@
 import pyray as pr
-from graphics.rendering.render_colors import Colors
-from graphics.ui.ui_elements import Button
-from graphics.ui.ui_menu import AppScreen
+from Graphics.Rendering.render_colors import Colors
+from Graphics.UI.ui_elements import Button
+from Graphics.UI.ui_menu import AppScreen
 
 class SettingsScreen:
     """Configuration screen allowing users to customize display modes and resolution."""
