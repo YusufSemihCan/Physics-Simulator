@@ -4,7 +4,7 @@ from Graphics.Rendering.render_window import SimulationRenderer
 
 def main() -> None:
     # Initialize Raylib hardware OpenGL window and camera subsystem
-    print("[+] Initializing Antigravity Raylib Physics Engine...")
+    print("[+] Initializing Physics Simulator...")
     app = SimulationRenderer(width=1280, height=720)
 
     # Main synchronous GPU draw loop running until window close signal

@@ -1,10 +1,11 @@
-name: Antigravity Unit Tests
+name: Unit Tests
 
-# Triggers automatically on push or pull request to any branch, and allows manual execution.
+# Triggers on pull request to any branch, and allows manual execution via workflow_dispatch.
+# Push trigger disabled per user request.
 on:
   workflow_dispatch:
-  push:
-    branches: [ "**" ]
+  # push:
+  #   branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
 
@@ -20,11 +21,16 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install dependencies
+    - name: Install Linux system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgl1-mesa-dev libxi6 libxcursor1 libxrandr2 libxinerama1 libwayland-client0 libwayland-cursor0 libxkbcommon0 xvfb
+
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyray
+        pip install -r requirements.txt
 
     - name: Run Simulation & Graphics Unit Tests
       run: |
-        python -m unittest discover -s "Unit tests" -p "test_*.py"
+        xvfb-run python -m unittest discover -s "Unit tests" -p "test_*.py"

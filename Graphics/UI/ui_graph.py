@@ -1,4 +1,5 @@
 import pyray as pr
+import math
 from typing import List
 from Graphics.Rendering.render_colors import Colors
 from Graphics.UI.ui_elements import Button
@@ -29,11 +30,21 @@ class GraphRenderer:
     def add_sample(self, shape, gravity: float) -> None:
         if not shape:
             return
-        self.history_h.append(shape.pos.y)
-        self.history_v.append(shape.vel.y)
-        self.history_ke.append(shape.kinetic_energy())
-        self.history_pe.append(shape.potential_energy(gravity))
-        self.history_tot.append(shape.total_energy(gravity))
+        h_val = shape.pos.y if not math.isnan(shape.pos.y) and not math.isinf(shape.pos.y) else 0.0
+        v_val = shape.vel.y if not math.isnan(shape.vel.y) and not math.isinf(shape.vel.y) else 0.0
+        ke_val = shape.kinetic_energy()
+        pe_val = shape.potential_energy(gravity)
+        tot_val = shape.total_energy(gravity)
+
+        if math.isnan(ke_val) or math.isinf(ke_val): ke_val = 0.0
+        if math.isnan(pe_val) or math.isinf(pe_val): pe_val = 0.0
+        if math.isnan(tot_val) or math.isinf(tot_val): tot_val = 0.0
+
+        self.history_h.append(h_val)
+        self.history_v.append(v_val)
+        self.history_ke.append(ke_val)
+        self.history_pe.append(pe_val)
+        self.history_tot.append(tot_val)
 
         if len(self.history_h) > self.max_points:
             self.history_h.pop(0)

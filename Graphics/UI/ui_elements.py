@@ -1,3 +1,4 @@
+import os
 import math
 from typing import Callable, Optional
 import pyray as pr
@@ -24,9 +25,9 @@ class Button:
         self.rect = pr.Rectangle(x, y, width, height)
         self.text = text
 
-    def update_and_draw(self) -> bool:
+    def update_and_draw(self, enabled: bool = True) -> bool:
         mouse_pos = pr.get_mouse_position()
-        is_hovered = pr.check_collision_point_rec(mouse_pos, self.rect)
+        is_hovered = enabled and pr.check_collision_point_rec(mouse_pos, self.rect)
         clicked = is_hovered and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
 
         # Dynamic visual hover styling
@@ -205,6 +206,122 @@ class NodeSelector:
             pr.draw_text(f"► {option_str}", text_x - 18, self.y, 16, text_color)
         else:
             pr.draw_text(option_str, text_x, self.y, 16, Colors.TEXT)
+
+        return changed, self.current_index
+
+
+class FileTreeSelector:
+    """A vertical hierarchical file tree widget allowing direct file browser selection and drag & drop rearrangement."""
+    def __init__(self, x: int, y: int, width: int, height: int, root_name: str, options: list[str], current_index: int = 0):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.root_name = root_name
+        self.options = options
+        self.current_index = current_index
+        self.scroll_offset = 0
+        self.dragging_index = -1
+        self.drag_move_request = None
+
+    def update_and_draw(self, enabled: bool = True) -> tuple[bool, int]:
+        changed = False
+        self.drag_move_request = None
+        mouse_pos = pr.get_mouse_position()
+        left_click = enabled and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
+        left_down = enabled and pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT)
+        left_released = enabled and pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT)
+
+        # Draw tree container frame
+        rect = pr.Rectangle(self.x, self.y, self.width, self.height)
+        pr.draw_rectangle(self.x, self.y, self.width, self.height, pr.Color(20, 22, 27, 255))
+        pr.draw_rectangle_lines(self.x, self.y, self.width, self.height, Colors.GRID_MAJOR)
+
+        # Root folder header
+        header_h = 32
+        header_rect = pr.Rectangle(self.x, self.y, self.width, header_h)
+        is_header_hovered = enabled and pr.check_collision_point_rec(mouse_pos, header_rect)
+        if is_header_hovered and left_released and self.dragging_index != -1:
+            src_opt = self.options[self.dragging_index]
+            self.drag_move_request = (src_opt, "")
+            self.dragging_index = -1
+
+        pr.draw_rectangle(self.x, self.y, self.width, header_h, Colors.UI_ACTIVE if (is_header_hovered and self.dragging_index != -1) else Colors.GRID_MINOR)
+        pr.draw_text(f"[DIR] {self.root_name}/ (Drop here for root)", self.x + 12, self.y + 8, 16, Colors.UI_PANEL if (is_header_hovered and self.dragging_index != -1) else Colors.UI_ACTIVE)
+        pr.draw_line(self.x, self.y + header_h, self.x + self.width, self.y + header_h, Colors.GRID_MAJOR)
+
+        # Handle wheel scrolling if hovered
+        if enabled and pr.check_collision_point_rec(mouse_pos, rect):
+            wheel = pr.get_mouse_wheel_move()
+            if wheel != 0:
+                self.scroll_offset = max(0, min(max(0, len(self.options) - 10), int(self.scroll_offset - wheel)))
+
+        # Draw file items
+        item_h = 28
+        start_y = self.y + header_h + 6
+        max_visible = max(1, (self.height - header_h - 10) // item_h)
+
+        for i in range(self.scroll_offset, min(len(self.options), self.scroll_offset + max_visible)):
+            item_y = start_y + (i - self.scroll_offset) * item_h
+            item_rect = pr.Rectangle(self.x + 4, item_y, self.width - 8, item_h)
+            is_hovered = enabled and pr.check_collision_point_rec(mouse_pos, item_rect)
+
+            if is_hovered:
+                if left_click:
+                    self.current_index = i
+                    self.dragging_index = i
+                    changed = True
+                elif left_released and self.dragging_index != -1 and self.dragging_index != i:
+                    src_opt = self.options[self.dragging_index]
+                    target_opt = self.options[i]
+                    full_target = os.path.join(self.root_name, target_opt)
+                    is_target_dir = os.path.isdir(full_target) or any(o.replace("\\", "/").startswith(target_opt.replace("\\", "/") + "/") for o in self.options)
+                    dest_folder = target_opt if is_target_dir else os.path.dirname(target_opt).replace("\\", "/")
+                    self.drag_move_request = (src_opt, dest_folder)
+                    self.dragging_index = -1
+
+            is_selected = (i == self.current_index)
+            if is_selected:
+                pr.draw_rectangle_rounded(item_rect, 0.1, 4, Colors.UI_ACTIVE)
+            elif is_hovered:
+                pr.draw_rectangle_rounded(item_rect, 0.1, 4, Colors.GRID_MINOR)
+
+            opt = self.options[i]
+            parts = opt.replace("\\", "/").split("/")
+            depth = len(parts) - 1
+            basename = parts[-1]
+
+            full_path = os.path.join(self.root_name, opt)
+            is_dir = os.path.isdir(full_path) or any(o.replace("\\", "/").startswith(opt.replace("\\", "/") + "/") for o in self.options)
+
+            parent_prefix = "/".join(parts[:-1])
+            is_last_sibling = True
+            for j in range(i + 1, len(self.options)):
+                next_parts = self.options[j].replace("\\", "/").split("/")
+                next_parent = "/".join(next_parts[:-1])
+                if len(next_parts) - 1 == depth and next_parent == parent_prefix:
+                    is_last_sibling = False
+                    break
+                if len(next_parts) - 1 < depth:
+                    break
+
+            branch = "\\--" if is_last_sibling else "|--"
+            icon = "[DIR]" if is_dir else " * "
+            label = f"{basename}/" if is_dir else f"{basename}.json"
+
+            text_color = pr.Color(20, 22, 27, 255) if is_selected else Colors.TEXT
+            indent_x = int(self.x + 16 + (depth * 20))
+            pr.draw_text(f"{branch} {icon} {label}", indent_x, int(item_y + 6), 15, text_color)
+
+        if self.dragging_index != -1 and enabled and left_down:
+            drag_txt = f"[Dragging]: {self.options[self.dragging_index]}"
+            dw = pr.measure_text(drag_txt, 14) + 20
+            pr.draw_rectangle(int(mouse_pos.x) + 12, int(mouse_pos.y) + 12, dw, 26, pr.Color(40, 44, 52, 230))
+            pr.draw_rectangle_lines(int(mouse_pos.x) + 12, int(mouse_pos.y) + 12, dw, 26, Colors.UI_ACTIVE)
+            pr.draw_text(drag_txt, int(mouse_pos.x) + 22, int(mouse_pos.y) + 18, 14, pr.WHITE)
+
+        if not left_down:
+            self.dragging_index = -1
 
         return changed, self.current_index
 

@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import pyray as pr
 from typing import List, Optional
 from Simulation.sim_shapes import PhysicsShape
@@ -39,12 +40,45 @@ class ScenarioManager:
     def list_scenarios(self) -> List[str]:
         if not os.path.exists(self.scenarios_dir):
             return []
-        files = [f[:-5] for f in os.listdir(self.scenarios_dir) if f.endswith(".json")]
-        return sorted(files)
+        items = []
+        def _walk(current_rel: str):
+            current_abs = os.path.join(self.scenarios_dir, current_rel) if current_rel else self.scenarios_dir
+            if not os.path.exists(current_abs):
+                return
+            try:
+                entries = os.listdir(current_abs)
+            except OSError:
+                return
+            dirs = sorted([e for e in entries if os.path.isdir(os.path.join(current_abs, e))])
+            files = sorted([e[:-5] for e in entries if os.path.isfile(os.path.join(current_abs, e)) and e.endswith(".json")])
+            for d in dirs:
+                rel_d = os.path.join(current_rel, d) if current_rel else d
+                rel_d = rel_d.replace("\\", "/")
+                items.append(rel_d)
+                _walk(rel_d)
+            for f in files:
+                rel_f = os.path.join(current_rel, f) if current_rel else f
+                rel_f = rel_f.replace("\\", "/")
+                items.append(rel_f)
+        _walk("")
+        return items
+
+    def create_folder(self, folder_path: str) -> bool:
+        full_path = os.path.join(self.scenarios_dir, folder_path)
+        try:
+            os.makedirs(full_path, exist_ok=True)
+            marker = os.path.join(full_path, ".folder")
+            with open(marker, "w", encoding="utf-8") as f:
+                f.write("directory marker")
+            print(f"[+] Folder created: {full_path}")
+            return True
+        except Exception as e:
+            print(f"[!] Error creating folder: {e}")
+            return False
 
     def save_scenario(self, name: str, scene: SimulationScene) -> None:
-        os.makedirs(self.scenarios_dir, exist_ok=True)
         filepath = os.path.join(self.scenarios_dir, f"{name}.json")
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         scene.name = name
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(scene.to_dict(), f, indent=4)
@@ -59,10 +93,42 @@ class ScenarioManager:
             data = json.load(f)
         return SimulationScene.from_dict(data)
 
+    def move_scenario(self, src_name: str, dest_folder: str) -> bool:
+        """Moves a scenario file or folder into dest_folder (or root if dest_folder is empty)."""
+        src_dir = os.path.join(self.scenarios_dir, src_name)
+        src_file = os.path.join(self.scenarios_dir, f"{src_name}.json")
+        target_dir = os.path.join(self.scenarios_dir, dest_folder) if dest_folder else self.scenarios_dir
+        os.makedirs(target_dir, exist_ok=True)
+        try:
+            if os.path.isdir(src_dir):
+                basename = os.path.basename(src_name)
+                dest_path = os.path.join(target_dir, basename)
+                if os.path.normpath(src_dir) != os.path.normpath(dest_path):
+                    shutil.move(src_dir, dest_path)
+                    print(f"[+] Moved folder {src_dir} -> {dest_path}")
+                return True
+            elif os.path.exists(src_file):
+                basename = os.path.basename(src_name) + ".json"
+                dest_path = os.path.join(target_dir, basename)
+                if os.path.normpath(src_file) != os.path.normpath(dest_path):
+                    shutil.move(src_file, dest_path)
+                    print(f"[+] Moved scenario {src_file} -> {dest_path}")
+                return True
+        except Exception as e:
+            print(f"[!] Error moving scenario: {e}")
+        return False
+
     def delete_scenario(self, name: str) -> bool:
+        dirpath = os.path.join(self.scenarios_dir, name)
         filepath = os.path.join(self.scenarios_dir, f"{name}.json")
-        if os.path.exists(filepath):
+        if os.path.isdir(dirpath):
+            shutil.rmtree(dirpath)
+            print(f"[-] Folder deleted: {dirpath}")
+            self.ensure_presets()
+            return True
+        elif os.path.exists(filepath):
             os.remove(filepath)
             print(f"[-] Scenario deleted: {filepath}")
+            self.ensure_presets()
             return True
         return False
