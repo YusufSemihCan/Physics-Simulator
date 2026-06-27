@@ -15,24 +15,48 @@ One of the project's foundational design goals is a strict separation of concern
 
 ---
 
-## 🛠️ Architecture Overview
+## 🛠️ Architecture & Visual Pipelines
 
-The codebase is organized into two main Python packages:
+The codebase is organized into decoupled layers, utilizing **Raylib (`pyray`)** for hardware-accelerated 3D/2D educational rendering and deterministic physics calculations.
 
-1. **`Physics`**: Handles all vector state computations, force integration, collision detection, and rigid-body mathematics. It depends solely on standard libraries and `numpy`.
-2. **`Rendering`**: Manages the application window, frame rate capping, input handling, and screen drawings. It currently uses `pygame` for plotting shapes, texts, and vector lines.
+### 📊 Interactive Flow diagrams
+Click any of the individual diagram guides below for detailed educational breakdowns:
+1. **[System Architecture Documentation](docs/diagrams/1_SYSTEM_ARCHITECTURE.md)**
+2. **[Fixed Timestep Simulation Loop](docs/diagrams/2_FIXED_TIMESTEP_LOOP.md)**
+3. **[Coordinate Scaling & Transformation](docs/diagrams/3_COORDINATE_TRANSFORMATION.md)**
+4. **[Interactive User Manipulation & Picking](docs/diagrams/4_INTERACTIVE_INPUT_PIPELINE.md)**
+
+#### Live System Architecture Overview
+```mermaid
+flowchart TD
+    App["Application Entry (main.py)"] --> SimLoop["Simulation Loop Controller"]
+    
+    subgroup_math["Deterministic Physics Layer"]
+    SimLoop --> PhysEngine["Physics Engine"]
+    PhysEngine --> State["Entities & Bodies (Mass, Pos, Vel)"]
+    PhysEngine --> Solver["Integrator / Collision Solver"]
+    
+    subgroup_render["Visual Rendering Layer (Raylib / GPU)"]
+    SimLoop --> Renderer["SimulationRenderer (window.py)"]
+    Renderer --> Cam3D["3D Orbital Camera"]
+    Renderer --> Cam2D["2D Orthographic Viewport"]
+    
+    Renderer --> VizSubsystem["Educational Visualization Modules"]
+    VizSubsystem --> Vectors["Vector Arrow Renderer (Velocity / Forces)"]
+    VizSubsystem --> Trails["Trajectory Trail Renderer"]
+    VizSubsystem --> Grid["GridRenderer (grid.py)"]
+    VizSubsystem --> HUD["Heads-Up Display (UI / Sliders)"]
+```
 
 ```
 Physics-Simulator/
 ├── Physics/              # Core physics computations (no graphics dependencies)
-│   ├── __init__.py       # Package entry
-│   └── engine.py         # Physics engine & state updates
-├── Rendering/            # Visualization & display loops
-│   ├── __init__.py       # Package entry
-│   └── renderer.py       # Pygame renderer & window management
-├── .gitignore            # Git exclusion rules
+├── Rendering/            # Raylib 3D/2D GPU Visualization & display loops
+│   ├── window.py         # SimulationRenderer & camera management
+│   ├── grid.py           # Coordinate grid & axis visualization
+│   └── colors.py         # Curated educational UI color palette
+├── docs/diagrams/        # Detailed educational architecture flowcharts
 ├── README.md             # Project documentation (this file)
-├── requirements.txt      # Project dependencies (numpy, pygame)
 └── main.py               # Main orchestrator & entry point
 ```
 
