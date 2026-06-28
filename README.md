@@ -1,8 +1,10 @@
 # Physics Simulator
 
-[![Core Physics Engine by geterktt](https://img.shields.io/badge/Core_Physics_Engine-geterktt-blue?logo=github)](https://github.com/geterktt)
+[![Co-Creator YusufSemihCan](https://img.shields.io/badge/Co--Creator-YusufSemihCan-purple?logo=github)](https://github.com/YusufSemihCan)
+[![Co-Creator geterktt](https://img.shields.io/badge/Co--Creator-geterktt-blue?logo=github)](https://github.com/geterktt)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](file:///e:/Project%20Repo/Physics-Simulator/LICENSE)
 
-**Goal:** An intuitive, visual platform for students and educators to explore core physics concepts through interactive multi-domain simulations. The UI and rendering layers are cleanly separated from the physics engine (developed in collaboration with [@geterktt](https://github.com/geterktt)), enabling safe, independent extension of each.
+**Goal:** An intuitive, visual platform for students and educators to explore core physics concepts through interactive multi-domain simulations. The UI and rendering layers are cleanly separated from the physics engine (co-created with [@geterktt](https://github.com/geterktt)), enabling safe, independent extension of each.
 
 ---
 
@@ -376,10 +378,10 @@ python main.py
 
 ## 🤝 Team
 
-| Area | Owner |
-|------|-------|
-| `Physics/` — `step_physics()`, integration, collision | **Collaborator ([@geterktt](https://github.com/geterktt))** |
-| `Graphics/`, `Simulation/`, CI, documentation | **Project author** |
+| Area | Owner | Role |
+|------|-------|------|
+| `Physics/` — `step_physics()`, integration, collision | **[@geterktt](https://github.com/geterktt)** | Co-Creator & Lead Physics Engineer |
+| `Graphics/`, `Simulation/`, CI, documentation | **[@YusufSemihCan](https://github.com/YusufSemihCan)** | Co-Creator & Lead Rendering Engineer |
 
 ---
 
