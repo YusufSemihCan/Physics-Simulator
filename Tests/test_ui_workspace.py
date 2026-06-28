@@ -1,6 +1,6 @@
 import unittest
 import pyray as pr
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from Graphics.UI.ui_workspace import WorkspaceUI
 from Simulation.sim_modes import SimulationMode
 from Simulation.sim_optics import OpticsScene
@@ -88,7 +88,10 @@ class TestWorkspaceUIAndMultiMode(unittest.TestCase):
         
         self.assertIsNone(self.circuit_scene.pick_component(10.0, 10.0))
 
-    def test_inspector_kinematics_dispatch(self):
+    @patch('Graphics.UI.ui_elements.Slider.update_and_draw', lambda self: self.value)
+    @patch('Graphics.UI.ui_elements.Button.update_and_draw', lambda self, *args: False)
+    @patch('pyray.draw_text')
+    def test_inspector_kinematics_dispatch(self, *args):
         ui = WorkspaceUI(self.mock_app)
         shape = MagicMock()
         shape.mass = 5.0
@@ -102,7 +105,10 @@ class TestWorkspaceUIAndMultiMode(unittest.TestCase):
         self.assertEqual(ui.slider_prop1.value, 5.0)
         self.assertEqual(ui.slider_prop2.value, 0.8)
 
-    def test_inspector_circuits_switch_toggle(self):
+    @patch('Graphics.UI.ui_elements.Slider.update_and_draw', lambda self: self.value)
+    @patch('Graphics.UI.ui_elements.Button.update_and_draw', lambda self, *args: False)
+    @patch('pyray.draw_text')
+    def test_inspector_circuits_switch_toggle(self, *args):
         ui = WorkspaceUI(self.mock_app)
         n1 = self.circuit_scene.add_node(0, 0)
         n2 = self.circuit_scene.add_node(1, 1)
