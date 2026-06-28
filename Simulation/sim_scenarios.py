@@ -9,7 +9,7 @@ from Graphics.Rendering.render_colors import Colors
 
 class ScenarioManager:
     """Manages disk persistence, JSON serialization, and built-in preset simulation scenarios."""
-    def __init__(self, scenarios_dir: str = "scenarios"):
+    def __init__(self, scenarios_dir: str = "Simulation/scenarios"):
         self.scenarios_dir = scenarios_dir
         self.ensure_presets()
 
@@ -131,4 +131,40 @@ class ScenarioManager:
             print(f"[-] Scenario deleted: {filepath}")
             self.ensure_presets()
             return True
+        return False
+
+    def rename_scenario(self, old_name: str, new_name: str) -> bool:
+        """Renames a scenario file or folder from old_name to new_name."""
+        old_dir = os.path.join(self.scenarios_dir, old_name)
+        old_file = os.path.join(self.scenarios_dir, f"{old_name}.json")
+        new_dir = os.path.join(self.scenarios_dir, new_name)
+        new_file = os.path.join(self.scenarios_dir, f"{new_name}.json")
+
+        try:
+            if os.path.isdir(old_dir):
+                if os.path.exists(new_dir) or os.path.exists(new_file):
+                    print(f"[!] Cannot rename: destination already exists.")
+                    return False
+                os.makedirs(os.path.dirname(new_dir), exist_ok=True)
+                shutil.move(old_dir, new_dir)
+                print(f"[+] Renamed folder {old_dir} -> {new_dir}")
+                return True
+            elif os.path.exists(old_file):
+                if os.path.exists(new_file) or os.path.exists(new_dir):
+                    print(f"[!] Cannot rename: destination already exists.")
+                    return False
+                os.makedirs(os.path.dirname(new_file), exist_ok=True)
+                shutil.move(old_file, new_file)
+                try:
+                    with open(new_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    data["name"] = os.path.basename(new_name)
+                    with open(new_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=4)
+                except Exception as e:
+                    print(f"[!] Warning: could not update internal name field: {e}")
+                print(f"[+] Renamed scenario {old_file} -> {new_file}")
+                return True
+        except Exception as e:
+            print(f"[!] Error renaming scenario: {e}")
         return False

@@ -62,5 +62,18 @@ class TestUILoadScenario(unittest.TestCase):
         screen.refresh_list()
         self.assertNotIn("Classroom", screen.selector.options)
 
+    def test_scenario_renaming(self):
+        screen = LoadScenarioScreen(self.app)
+        self.assertTrue(hasattr(screen, 'btn_rename'))
+        
+        # Test renaming file
+        res = self.scenarios.rename_scenario("Single Sphere", "Renamed Sphere")
+        self.assertTrue(res)
+        self.assertTrue(os.path.exists(os.path.join(self.test_dir, "Renamed Sphere.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.test_dir, "Single Sphere.json")))
+        
+        # Rename back
+        self.scenarios.rename_scenario("Renamed Sphere", "Single Sphere")
+
 if __name__ == "__main__":
     unittest.main()

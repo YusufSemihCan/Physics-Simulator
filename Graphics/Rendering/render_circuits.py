@@ -10,16 +10,12 @@ class CircuitRenderer:
         self.wiring_start_node = None
         self.active_comp_type = 'wire'
 
-    def handle_input(self, scene, sw: int, sh: int, pan_x: float = 0.0, pan_y: float = 0.0) -> None:
-        if not scene:
+    def handle_input(self, scene, sw: int, sh: int, pan_x: float = 0.0, pan_y: float = 0.0, is_over_ui: bool = False) -> None:
+        if not scene or is_over_ui:
             return
         cx = int(sw // 2 + pan_x)
         cy = int(sh // 2 + pan_y)
         mouse_pos = pr.get_mouse_position()
-
-        # Ignore clicks in UI toolbar areas (top y<55, left x<290)
-        if mouse_pos.y < 55 or mouse_pos.x < 290:
-            return
 
         # Snap to grid of 0.5 units
         gx = round((mouse_pos.x - cx) / self.scale * 2.0) / 2.0

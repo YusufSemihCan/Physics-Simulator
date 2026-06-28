@@ -54,6 +54,14 @@ class CircuitScene:
         self.nodes.clear()
         self.components.clear()
 
+    def pick_component(self, x: float, y: float, threshold: float = 0.8):
+        for comp in self.components:
+            mx = (comp.node_a.x + comp.node_b.x) / 2.0
+            my = (comp.node_a.y + comp.node_b.y) / 2.0
+            if math.hypot(mx - x, my - y) <= threshold:
+                return comp
+        return None
+
     def create_default_circuit(self):
         self.clear()
         # 9V Battery connected to Switch and Bulb

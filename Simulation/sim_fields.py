@@ -29,6 +29,12 @@ class FieldScene:
     def clear(self):
         self.sources.clear()
 
+    def pick_source(self, x: float, y: float, threshold: float = 0.8):
+        for src in self.sources:
+            if math.hypot(src.x - x, src.y - y) <= threshold:
+                return src
+        return None
+
     def create_default_scene(self):
         self.clear()
         # Electric dipole (+1 C at left, -1 C at right)

@@ -1,0 +1,92 @@
+import unittest
+import pyray as pr
+from unittest.mock import MagicMock
+from Graphics.UI.ui_workspace import WorkspaceUI
+from Simulation.sim_modes import SimulationMode
+from Simulation.sim_optics import OpticsScene
+from Simulation.sim_fields import FieldScene
+from Simulation.sim_circuits import CircuitScene
+
+class TestWorkspaceUIAndMultiMode(unittest.TestCase):
+    def setUp(self):
+        # Create a mock application instance simulating SimulationRenderer
+        self.mock_app = MagicMock()
+        self.mock_app.sim_mode = SimulationMode.KINEMATICS_3D
+        self.mock_app.placement_mode = None
+        self.mock_app.selected_shape = None
+        
+        # Scenes
+        self.optics_scene = OpticsScene("Test Optics")
+        self.fields_scene = FieldScene("Test Fields")
+        self.circuit_scene = CircuitScene("Test Circuits")
+        
+        self.mock_app.optics_scene = self.optics_scene
+        self.mock_app.fields_scene = self.fields_scene
+        self.mock_app.circuit_scene = self.circuit_scene
+
+    def test_workspace_ui_initialization_and_visibility(self):
+        ui = WorkspaceUI(self.mock_app)
+        self.assertTrue(ui.show_top_bar)
+        self.assertTrue(ui.show_bottom_bar)
+        self.assertTrue(ui.show_sidebar)
+        self.assertEqual(ui.sidebar_position, 'left')
+        self.assertIsNone(ui.active_dropdown)
+
+    def test_is_over_ui_collision_detection(self):
+        ui = WorkspaceUI(self.mock_app)
+        
+        # Test Top Bar (y < 40)
+        self.assertTrue(ui.is_over_ui(pr.Vector2(500, 20)))
+        
+        # Test Sidebar (left side x < 250)
+        self.assertTrue(ui.is_over_ui(pr.Vector2(100, 300)))
+        
+        # Test Open Canvas area (center of 1280x720 screen)
+        self.assertFalse(ui.is_over_ui(pr.Vector2(600, 300)))
+        
+        # Test hiding sidebar makes canvas spot clickable
+        ui.show_sidebar = False
+        self.assertFalse(ui.is_over_ui(pr.Vector2(100, 300)))
+
+    def test_optics_picking_and_removal(self):
+        em = self.optics_scene.add_emitter(-5.0, 2.0, 0.0)
+        mir = self.optics_scene.add_mirror(2.0, 2.0, 45.0, 3.0)
+        
+        # Pick element near (-5.0, 2.0)
+        picked = self.optics_scene.pick_element(-4.9, 2.1)
+        self.assertEqual(picked, em)
+        
+        # Pick element near (2.0, 2.0)
+        picked_mir = self.optics_scene.pick_element(2.05, 1.95)
+        self.assertEqual(picked_mir, mir)
+        
+        # Remove element
+        self.optics_scene.emitters.remove(em)
+        self.assertIsNone(self.optics_scene.pick_element(-5.0, 2.0))
+
+    def test_fields_picking_and_removal(self):
+        ch = self.fields_scene.add_charge(3.0, -1.0, 1.0)
+        mag = self.fields_scene.add_magnet(-3.0, -1.0, 2.0, 0.0)
+        
+        picked = self.fields_scene.pick_source(3.1, -0.9)
+        self.assertEqual(picked, ch)
+        
+        picked_mag = self.fields_scene.pick_source(-3.0, -1.1)
+        self.assertEqual(picked_mag, mag)
+        
+        self.fields_scene.sources.remove(ch)
+        self.assertIsNone(self.fields_scene.pick_source(3.0, -1.0))
+
+    def test_circuits_picking(self):
+        n1 = self.circuit_scene.add_node(0.0, 0.0)
+        n2 = self.circuit_scene.add_node(4.0, 0.0)
+        res = self.circuit_scene.add_component('resistor', n1, n2, 10.0)
+        
+        # Midpoint is at (2.0, 0.0)
+        picked = self.circuit_scene.pick_component(2.1, 0.1)
+        self.assertEqual(picked, res)
+        
+        self.assertIsNone(self.circuit_scene.pick_component(10.0, 10.0))
+
+if __name__ == '__main__':
+    unittest.main()

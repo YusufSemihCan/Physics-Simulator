@@ -129,37 +129,44 @@ class GraphRenderer:
             ly = gy + int(i * gh / 4)
             pr.draw_line(gx, ly, gx + gw, ly, pr.Color(40, 45, 55, 255))
 
-        if self.active_tab == "h":
-            data = self.history_h if self.history_h else [shape.pos.y]
-            min_v, max_v = min(0.0, min(data)), max(10.0, max(data) * 1.1)
-            self.draw_polyline(data, g_rect, min_v, max_v, pr.SKYBLUE)
-            pr.draw_text(f"Max Height: {max_v:.1f} m", gx + 8, gy + 8, 12, pr.SKYBLUE)
-            pr.draw_text(f"Min: {min_v:.1f} m", gx + 8, gy + gh - 20, 12, pr.GRAY)
-
-        elif self.active_tab == "v":
-            data = self.history_v if self.history_v else [shape.vel.y]
-            abs_m = max(10.0, max(abs(v) for v in data) * 1.1)
-            min_v, max_v = -abs_m, abs_m
-            # Draw zero-velocity midline
-            mid_y = gy + gh // 2
-            pr.draw_line(gx, mid_y, gx + gw, mid_y, pr.GRAY)
-            self.draw_polyline(data, g_rect, min_v, max_v, Colors.VECTOR_VELOCITY)
-            pr.draw_text(f"+V max: {max_v:.1f} m/s", gx + 8, gy + 8, 12, Colors.VECTOR_VELOCITY)
-            pr.draw_text(f"-V min: {min_v:.1f} m/s", gx + 8, gy + gh - 20, 12, Colors.VECTOR_VELOCITY)
-
-        elif self.active_tab == "e":
-            d_ke = self.history_ke if self.history_ke else [ke]
-            d_pe = self.history_pe if self.history_pe else [pe]
-            d_tot = self.history_tot if self.history_tot else [tot]
-            max_v = max(50.0, max(d_tot) * 1.1)
-            
-            self.draw_polyline(d_pe, g_rect, 0.0, max_v, pr.Color(129, 199, 132, 255))  # Green PE
-            self.draw_polyline(d_ke, g_rect, 0.0, max_v, pr.Color(255, 183, 77, 255))   # Orange KE
-            self.draw_polyline(d_tot, g_rect, 0.0, max_v, pr.WHITE)                      # White Total
-
-            pr.draw_text("Total Energy (White)", gx + 8, gy + 8, 12, pr.WHITE)
-            pr.draw_text("Potential Energy (Green)", gx + 8, gy + 24, 12, pr.Color(129, 199, 132, 255))
-            pr.draw_text("Kinetic Energy (Orange)", gx + 8, gy + 40, 12, pr.Color(255, 183, 77, 255))
-            pr.draw_text(f"Scale Max: {max_v:.0f} J", gx + gw - 110, gy + gh - 20, 12, pr.LIGHTGRAY)
+        match self.active_tab:
+            case "h":
+                self._draw_height_tab(shape, g_rect, gx, gy, gh)
+            case "v":
+                self._draw_velocity_tab(shape, g_rect, gx, gy, gw, gh)
+            case "e":
+                self._draw_energy_tab(g_rect, gx, gy, gw, gh, ke, pe, tot)
 
         pr.draw_text("Left Click another object to inspect | Click empty space to deselect", px + 12, py + 520, 11, pr.DARKGRAY)
+
+    def _draw_height_tab(self, shape, g_rect: pr.Rectangle, gx: int, gy: int, gh: int) -> None:
+        data = self.history_h if self.history_h else [shape.pos.y]
+        min_v, max_v = min(0.0, min(data)), max(10.0, max(data) * 1.1)
+        self.draw_polyline(data, g_rect, min_v, max_v, pr.SKYBLUE)
+        pr.draw_text(f"Max Height: {max_v:.1f} m", gx + 8, gy + 8, 12, pr.SKYBLUE)
+        pr.draw_text(f"Min: {min_v:.1f} m", gx + 8, gy + gh - 20, 12, pr.GRAY)
+
+    def _draw_velocity_tab(self, shape, g_rect: pr.Rectangle, gx: int, gy: int, gw: int, gh: int) -> None:
+        data = self.history_v if self.history_v else [shape.vel.y]
+        abs_m = max(10.0, max(abs(v) for v in data) * 1.1)
+        min_v, max_v = -abs_m, abs_m
+        mid_y = gy + gh // 2
+        pr.draw_line(gx, mid_y, gx + gw, mid_y, pr.GRAY)
+        self.draw_polyline(data, g_rect, min_v, max_v, Colors.VECTOR_VELOCITY)
+        pr.draw_text(f"+V max: {max_v:.1f} m/s", gx + 8, gy + 8, 12, Colors.VECTOR_VELOCITY)
+        pr.draw_text(f"-V min: {min_v:.1f} m/s", gx + 8, gy + gh - 20, 12, Colors.VECTOR_VELOCITY)
+
+    def _draw_energy_tab(self, g_rect: pr.Rectangle, gx: int, gy: int, gw: int, gh: int, ke: float, pe: float, tot: float) -> None:
+        d_ke = self.history_ke if self.history_ke else [ke]
+        d_pe = self.history_pe if self.history_pe else [pe]
+        d_tot = self.history_tot if self.history_tot else [tot]
+        max_v = max(50.0, max(d_tot) * 1.1)
+        
+        self.draw_polyline(d_pe, g_rect, 0.0, max_v, pr.Color(129, 199, 132, 255))
+        self.draw_polyline(d_ke, g_rect, 0.0, max_v, pr.Color(255, 183, 77, 255))
+        self.draw_polyline(d_tot, g_rect, 0.0, max_v, pr.WHITE)
+
+        pr.draw_text("Total Energy (White)", gx + 8, gy + 8, 12, pr.WHITE)
+        pr.draw_text("Potential Energy (Green)", gx + 8, gy + 24, 12, pr.Color(129, 199, 132, 255))
+        pr.draw_text("Kinetic Energy (Orange)", gx + 8, gy + 40, 12, pr.Color(255, 183, 77, 255))
+        pr.draw_text(f"Scale Max: {max_v:.0f} J", gx + gw - 110, gy + gh - 20, 12, pr.LIGHTGRAY)

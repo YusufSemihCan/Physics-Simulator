@@ -9,19 +9,20 @@ class LoadScenarioScreen:
     def __init__(self, app):
         self.app = app
         scenario_list = self.app.scenarios.list_scenarios() or ["Default"]
-        root_dir = getattr(self.app.scenarios, 'scenarios_dir', 'scenarios')
+        root_dir = getattr(self.app.scenarios, 'scenarios_dir', 'Simulation/scenarios')
         self.selector = FileTreeSelector(0, 0, 580, 310, root_dir, scenario_list, 0)
-        self.btn_launch = Button(0, 0, 135, 40, "Load Selected")
-        self.btn_save = Button(0, 0, 135, 40, "Save Active")
-        self.btn_new_folder = Button(0, 0, 135, 40, "New Folder")
-        self.btn_delete = Button(0, 0, 145, 40, "Delete Selected")
-        self.btn_back = Button(0, 0, 580, 40, "Back to Main Menu")
+        self.btn_launch = Button(0, 0, 180, 40, "Load Selected")
+        self.btn_save = Button(0, 0, 180, 40, "Save Active")
+        self.btn_new_folder = Button(0, 0, 180, 40, "New Folder")
+        self.btn_rename = Button(0, 0, 180, 40, "Rename Selected")
+        self.btn_delete = Button(0, 0, 180, 40, "Delete Selected")
+        self.btn_back = Button(0, 0, 180, 40, "Back to Menu")
         self.cached_scene = None
         self.last_selected_name = None
         self.notification = ""
         self.notif_timer = 0.0
         
-        self.popup_mode = None  # None, "NEW_FOLDER", "SAVE_AS"
+        self.popup_mode = None  # None, "NEW_FOLDER", "SAVE_AS", "RENAME"
         self.input_text = ""
         self.btn_modal_confirm = Button(0, 0, 140, 36, "Confirm")
         self.btn_modal_cancel = Button(0, 0, 140, 36, "Cancel")
@@ -39,7 +40,7 @@ class LoadScenarioScreen:
         return "Default"
 
     def is_item_folder(self, name: str) -> bool:
-        root_dir = getattr(self.app.scenarios, 'scenarios_dir', 'scenarios')
+        root_dir = getattr(self.app.scenarios, 'scenarios_dir', 'Simulation/scenarios')
         full_path = os.path.join(root_dir, name)
         return os.path.isdir(full_path) or any(o.replace("\\", "/").startswith(name.replace("\\", "/") + "/") for o in self.selector.options)
 
@@ -79,13 +80,16 @@ class LoadScenarioScreen:
         self.selector.width = panel_w - 60
         self.selector.height = 310
 
-        # Action Buttons positioning
-        by = py + 415
-        self.btn_launch.rect.x, self.btn_launch.rect.y = px + 30, by
-        self.btn_save.rect.x, self.btn_save.rect.y = px + 175, by
-        self.btn_new_folder.rect.x, self.btn_new_folder.rect.y = px + 320, by
-        self.btn_delete.rect.x, self.btn_delete.rect.y = px + 465, by
-        self.btn_back.rect.x, self.btn_back.rect.y = px + 30, by + 50
+        # Action Buttons positioning (2 rows of 3 buttons)
+        by1 = py + 410
+        by2 = py + 458
+        self.btn_launch.rect.x, self.btn_launch.rect.y = px + 30, by1
+        self.btn_save.rect.x, self.btn_save.rect.y = px + 225, by1
+        self.btn_new_folder.rect.x, self.btn_new_folder.rect.y = px + 420, by1
+        
+        self.btn_rename.rect.x, self.btn_rename.rect.y = px + 30, by2
+        self.btn_delete.rect.x, self.btn_delete.rect.y = px + 225, by2
+        self.btn_back.rect.x, self.btn_back.rect.y = px + 420, by2
 
         if not self.popup_mode:
             self.selector.update_and_draw(enabled=True)
@@ -123,6 +127,10 @@ class LoadScenarioScreen:
                 self.popup_mode = "NEW_FOLDER"
                 self.input_text = ""
 
+            if self.btn_rename.update_and_draw(enabled=True):
+                self.popup_mode = "RENAME"
+                self.input_text = os.path.basename(selected_name)
+
             if self.btn_delete.update_and_draw(enabled=True):
                 if len(self.selector.options) > 1:
                     self.app.scenarios.delete_scenario(selected_name)
@@ -139,6 +147,7 @@ class LoadScenarioScreen:
             self.btn_launch.update_and_draw(enabled=False)
             self.btn_save.update_and_draw(enabled=False)
             self.btn_new_folder.update_and_draw(enabled=False)
+            self.btn_rename.update_and_draw(enabled=False)
             self.btn_delete.update_and_draw(enabled=False)
             self.btn_back.update_and_draw(enabled=False)
 
@@ -151,18 +160,27 @@ class LoadScenarioScreen:
             pr.draw_rectangle_rounded(pr.Rectangle(mx, my, modal_w, modal_h), 0.1, 8, Colors.UI_PANEL)
             pr.draw_rectangle_rounded_lines(pr.Rectangle(mx, my, modal_w, modal_h), 0.1, 8, Colors.UI_BORDER)
 
-            title_str = "CREATE NEW FOLDER" if self.popup_mode == "NEW_FOLDER" else "SAVE SCENARIO AS"
+            match self.popup_mode:
+                case "NEW_FOLDER":
+                    title_str = "CREATE NEW FOLDER"
+                    self.btn_modal_confirm.text = "Create"
+                case "RENAME":
+                    title_str = "RENAME ITEM"
+                    self.btn_modal_confirm.text = "Rename"
+                case _:
+                    title_str = "SAVE SCENARIO AS"
+                    self.btn_modal_confirm.text = "Save"
+
             tw_m = pr.measure_text(title_str, 18)
             pr.draw_text(title_str, mx + (modal_w - tw_m) // 2, my + 18, 18, Colors.UI_ACTIVE)
             pr.draw_line(mx + 20, my + 45, mx + modal_w - 20, my + 45, Colors.UI_BORDER)
 
             selected_name = self.get_selected_scenario()
-            if self.is_item_folder(selected_name):
-                target_parent = selected_name
+            if self.popup_mode == "RENAME":
+                loc_str = f"Renaming: {selected_name}"
             else:
-                target_parent = os.path.dirname(selected_name).replace("\\", "/")
-
-            loc_str = f"Inside: {target_parent}/" if target_parent else "Inside: Root Directory"
+                target_parent = selected_name if self.is_item_folder(selected_name) else os.path.dirname(selected_name).replace("\\", "/")
+                loc_str = f"Inside: {target_parent}/" if target_parent else "Inside: Root Directory"
             pr.draw_text(loc_str, mx + 25, my + 55, 14, Colors.TEXT)
 
             # Process text input
@@ -187,7 +205,6 @@ class LoadScenarioScreen:
                 display_text = display_text[1:]
             pr.draw_text(display_text, int(input_rect.x) + 12, int(input_rect.y) + 12, 16, Colors.TEXT)
 
-            self.btn_modal_confirm.text = "Create" if self.popup_mode == "NEW_FOLDER" else "Save"
             self.btn_modal_confirm.rect.x = mx + 45
             self.btn_modal_confirm.rect.y = my + 145
             self.btn_modal_cancel.rect.x = mx + 255
@@ -200,16 +217,31 @@ class LoadScenarioScreen:
                 self.popup_mode = None
             elif confirm_clicked and self.input_text.strip():
                 clean_name = self.input_text.strip()
-                full_rel = os.path.join(target_parent, clean_name).replace("\\", "/") if target_parent else clean_name
-                
-                if self.popup_mode == "NEW_FOLDER":
-                    self.app.scenarios.create_folder(full_rel)
-                    self.refresh_list()
-                    self.set_notification(f"Created folder '{full_rel}'!")
-                elif self.popup_mode == "SAVE_AS":
-                    self.app.scenarios.save_scenario(full_rel, self.app.sim.scene)
-                    self.refresh_list()
-                    self.set_notification(f"Saved scenario '{full_rel}.json'!")
+                if clean_name.endswith(".json"):
+                    clean_name = clean_name[:-5]
+
+                match self.popup_mode:
+                    case "RENAME":
+                        old_name = selected_name
+                        parent_dir = os.path.dirname(old_name).replace("\\", "/")
+                        new_rel = os.path.join(parent_dir, clean_name).replace("\\", "/") if parent_dir else clean_name
+                        if self.app.scenarios.rename_scenario(old_name, new_rel):
+                            self.refresh_list()
+                            self.set_notification(f"Renamed to '{new_rel}'!")
+                        else:
+                            self.set_notification(f"Failed to rename '{old_name}'!")
+                    case "NEW_FOLDER":
+                        target_parent = selected_name if self.is_item_folder(selected_name) else os.path.dirname(selected_name).replace("\\", "/")
+                        full_rel = os.path.join(target_parent, clean_name).replace("\\", "/") if target_parent else clean_name
+                        self.app.scenarios.create_folder(full_rel)
+                        self.refresh_list()
+                        self.set_notification(f"Created folder '{full_rel}'!")
+                    case "SAVE_AS":
+                        target_parent = selected_name if self.is_item_folder(selected_name) else os.path.dirname(selected_name).replace("\\", "/")
+                        full_rel = os.path.join(target_parent, clean_name).replace("\\", "/") if target_parent else clean_name
+                        self.app.scenarios.save_scenario(full_rel, self.app.sim.scene)
+                        self.refresh_list()
+                        self.set_notification(f"Saved scenario '{full_rel}.json'!")
                 
                 self.popup_mode = None
 

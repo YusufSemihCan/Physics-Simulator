@@ -52,6 +52,15 @@ class OpticsScene:
         self.elements.clear()
         self.emitters.clear()
 
+    def pick_element(self, x: float, y: float, threshold: float = 0.8):
+        for em in self.emitters:
+            if math.hypot(em.x - x, em.y - y) <= threshold:
+                return em
+        for el in self.elements:
+            if math.hypot(el.x - x, el.y - y) <= threshold:
+                return el
+        return None
+
     def create_default_scene(self):
         self.clear()
         # Horizontal laser from left hitting a 45-degree mirror pointing up, then a lens
