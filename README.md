@@ -1,5 +1,83 @@
 # Educational Physics Simulator
 
+**Goal:** Provide an intuitive, visual platform for students and educators to explore core physics concepts through interactive simulations. The UI layer is cleanly separated from the physics engine, enabling easy extension and integration.
+
+<details open>
+<summary>🗂️ Project Overview</summary>
+
+The simulator consists of three main layers:
+
+- **UI Layer** – Handles user input, panels, sliders, and visual feedback (`Graphics/UI`).
+- **Rendering Layer** – GPU‑accelerated drawing with Raylib (`Graphics/Rendering`).
+- **Physics Layer** – Deterministic physics calculations (`Physics/`).
+
+```mermaid
+flowchart TD
+    UI[UI Layer (Graphics/UI)]
+    Renderer[SimulationRenderer (Graphics/Rendering/render_window.py)]
+    PhysicsEngine[Physics Module (Physics/...)]
+    SimLoop[Simulation Loop]
+    UI -->|User Input| Renderer
+    Renderer -->|Step(dt, gravity)| SimLoop
+    SimLoop -->|Update Entities| PhysicsEngine
+    PhysicsEngine -->|State & Positions| Renderer
+    Renderer -->|Render| UI
+```
+
+</details>
+
+<details>
+<summary>🔧 Variable Flow & Physics Connection</summary>
+
+```mermaid
+flowchart TD
+    UI[UI Layer (Graphics/UI)]
+    Renderer[SimulationRenderer (Graphics/Rendering/render_window.py)]
+    PhysicsEngine[Physics Module (Physics/...)]
+    SimLoop[Simulation Loop]
+    UI -->|User Input| Renderer
+    Renderer -->|Step(dt, gravity)| SimLoop
+    SimLoop -->|Update Entities| PhysicsEngine
+    PhysicsEngine -->|State & Positions| Renderer
+    Renderer -->|Render| UI
+```
+
+</details>
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.8+ (recommended 3.10)
+- Raylib (`pyray`) installed (see `requirements.txt`)
+
+### Installation
+```bash
+git clone <your-repository-url>
+cd Physics-Simulator
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+pip install -r requirements.txt
+```
+
+### Run the Simulator
+```bash
+python main.py
+```
+
+---
+
+## 🔮 Future Roadmap
+- Implement Verlet integration for improved numerical stability.
+- Add more collision shapes (circles, AABBs, polygons).
+- Provide bindings for external engines (e.g., Godot).
+- Expand UI overlays for dynamic parameter tweaking.
+
+---
+
+*Documentation generated on 2026‑06‑28.*
+
 This project is an educational physics engine and simulation environment built from scratch in Python. It is designed to help students, educators, and developers visualize, interact with, and learn about core physics and mathematics concepts.
 
 One of the project's foundational design goals is a strict separation of concerns between physics computation and visual presentation. This modularity allows the core physics module to remain lightweight, clean, and easily portable to different rendering frameworks or game engines in the future.
@@ -62,6 +140,20 @@ Physics-Simulator/
 ├── docs/diagrams/            # Master architectural flowcharts & implementation plans
 ├── README.md                 # Project documentation (this file)
 └── main.py                   # Main orchestrator & entry point
+```
+
+## 📊 Variable Flow & Physics Connection
+```mermaid
+flowchart TD
+    UI[UI Layer (Graphics/UI)]
+    Renderer[SimulationRenderer (Graphics/Rendering/render_window.py)]
+    PhysicsEngine[Physics Module (Physics/...)]
+    SimLoop[Simulation Loop]
+    UI -->|User Input| Renderer
+    Renderer -->|Step(dt, gravity)| SimLoop
+    SimLoop -->|Update Entities| PhysicsEngine
+    PhysicsEngine -->|State & Positions| Renderer
+    Renderer -->|Render| UI
 ```
 
 ---
