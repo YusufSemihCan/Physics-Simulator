@@ -1,11 +1,10 @@
 name: Unit Tests
 
-# Triggers on pull request to any branch, and allows manual execution via workflow_dispatch.
-# Push trigger disabled per user request.
+# Triggers on push or pull request to any branch, and allows manual execution via workflow_dispatch.
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [ "**" ]
+  push:
+    branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
 
