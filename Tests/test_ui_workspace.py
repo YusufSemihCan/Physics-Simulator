@@ -88,5 +88,31 @@ class TestWorkspaceUIAndMultiMode(unittest.TestCase):
         
         self.assertIsNone(self.circuit_scene.pick_component(10.0, 10.0))
 
+    def test_inspector_kinematics_dispatch(self):
+        ui = WorkspaceUI(self.mock_app)
+        shape = MagicMock()
+        shape.mass = 5.0
+        shape.restitution = 0.8
+        shape.pos = pr.Vector3(1.0, 2.0, 0.0)
+        shape.speed = 10.0
+        self.mock_app.selected_shape = shape
+        self.mock_app.sim_mode = SimulationMode.KINEMATICS_3D
+        
+        ui._draw_inspector(10, 10)
+        self.assertEqual(ui.slider_prop1.value, 5.0)
+        self.assertEqual(ui.slider_prop2.value, 0.8)
+
+    def test_inspector_circuits_switch_toggle(self):
+        ui = WorkspaceUI(self.mock_app)
+        n1 = self.circuit_scene.add_node(0, 0)
+        n2 = self.circuit_scene.add_node(1, 1)
+        switch = self.circuit_scene.add_component('switch', n1, n2, 1.0)
+        switch.state = True # Closed
+        self.mock_app.selected_shape = switch
+        self.mock_app.sim_mode = SimulationMode.CIRCUITS
+        
+        ui._draw_inspector(10, 10)
+        self.assertIn("CLOSED", ui.btn_toggle_state.text)
+
 if __name__ == '__main__':
     unittest.main()

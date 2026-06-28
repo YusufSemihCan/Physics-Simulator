@@ -61,6 +61,7 @@ class WorkspaceUI:
         
         # Inspector Modification Controls
         self.btn_remove_obj = Button(0, 0, 220, 34, "Remove Object")
+        self.btn_toggle_state = Button(0, 0, 220, 30, "Toggle State")
         self.slider_prop1 = Slider(0, 0, 220, 14, "Property 1", -50.0, 50.0, 0.0)
         self.slider_prop2 = Slider(0, 0, 220, 14, "Property 2", -50.0, 50.0, 0.0)
 
@@ -79,6 +80,13 @@ class WorkspaceUI:
             SimulationMode.CIRCUITS: self._draw_sidebar_circuits,
             SimulationMode.OPTICS: self._draw_sidebar_optics,
             SimulationMode.FIELDS: self._draw_sidebar_fields
+        }
+        self.inspector_draw_map = {
+            SimulationMode.KINEMATICS_3D: self._inspect_kinematics,
+            SimulationMode.KINETIC_2D: self._inspect_kinematics,
+            SimulationMode.CIRCUITS: self._inspect_circuits,
+            SimulationMode.OPTICS: self._inspect_optics,
+            SimulationMode.FIELDS: self._inspect_fields
         }
         # Built once; looked up every frame in update_and_draw
         self._mode_names = {
@@ -243,45 +251,121 @@ class WorkspaceUI:
             return
 
         pr.draw_text(f"Selected: {self._get_obj_id(obj)}", ix, iy, 15, Colors.TEXT)
-        
-        self.btn_remove_obj.rect.x, self.btn_remove_obj.rect.y = ix, iy + 140
-        if self.btn_remove_obj.update_and_draw():
-            collections_map = {
-                SimulationMode.KINEMATICS_3D: [self.app.sim.scene.shapes],
-                SimulationMode.KINETIC_2D: [self.app.sim.scene.shapes],
-                SimulationMode.CIRCUITS: [self.app.circuit_scene.components],
-                SimulationMode.OPTICS: [self.app.optics_scene.elements, self.app.optics_scene.emitters],
-                SimulationMode.FIELDS: [self.app.fields_scene.sources]
-            }
-            for coll in collections_map.get(mode, []):
-                if obj in coll:
-                    coll.remove(obj)
-                    break
-            self.app.selected_shape = None
-            return
+        curr_y = iy + 25
 
-        # Interactive modification sliders depending on object attributes
-        if hasattr(obj, 'mass'):
-            if self.slider_prop1.label != "Mass (kg)":
-                self.slider_prop1 = Slider(ix, iy + 45, 220, 14, "Mass (kg)", 0.1, 50.0, obj.mass)
-            obj.mass = self.slider_prop1.update_and_draw()
-            
-        if hasattr(obj, 'restitution'):
-            if self.slider_prop2.label != "Bounciness":
-                self.slider_prop2 = Slider(ix, iy + 90, 220, 14, "Bounciness", 0.0, 1.0, obj.restitution)
-            obj.restitution = self.slider_prop2.update_and_draw()
-            
-        elif hasattr(obj, 'val'): # Circuit component or field source
-            lbl = "Voltage (V)" if getattr(obj, 'comp_type', '') == 'battery' else ("Resistance (Ω)" if hasattr(obj, 'comp_type') else "Value")
+        handler = self.inspector_draw_map.get(mode)
+        if handler:
+            curr_y = handler(obj, ix, curr_y)
+
+        self.btn_remove_obj.rect.x, self.btn_remove_obj.rect.y = ix, curr_y + 5
+        if self.btn_remove_obj.update_and_draw():
+            self._remove_selected_object(mode, obj)
+
+    def _remove_selected_object(self, mode: SimulationMode, obj) -> None:
+        collections_map = {
+            SimulationMode.KINEMATICS_3D: [self.app.sim.scene.shapes],
+            SimulationMode.KINETIC_2D: [self.app.sim.scene.shapes],
+            SimulationMode.CIRCUITS: [self.app.circuit_scene.components],
+            SimulationMode.OPTICS: [self.app.optics_scene.elements, self.app.optics_scene.emitters],
+            SimulationMode.FIELDS: [self.app.fields_scene.sources]
+        }
+        for coll in collections_map.get(mode, []):
+            if obj in coll:
+                coll.remove(obj)
+                break
+        self.app.selected_shape = None
+
+    def _inspect_kinematics(self, obj, ix: int, curr_y: int) -> int:
+        if not (hasattr(obj, 'mass') and hasattr(obj, 'restitution')):
+            return curr_y
+        pr.draw_text(f"Pos: ({obj.pos.x:.1f}, {obj.pos.y:.1f}) m", ix, curr_y, 14, Colors.GRID_MAJOR)
+        curr_y += 18
+        pr.draw_text(f"Speed: {obj.speed:.2f} m/s", ix, curr_y, 14, Colors.GRID_MAJOR)
+        curr_y += 24
+
+        if self.slider_prop1.label != "Mass (kg)":
+            self.slider_prop1 = Slider(ix, curr_y, 220, 14, "Mass (kg)", 0.1, 50.0, obj.mass)
+        elif not self.slider_prop1.dragging:
+            self.slider_prop1.value = obj.mass
+        self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
+        obj.mass = self.slider_prop1.update_and_draw()
+        curr_y += 45
+
+        if self.slider_prop2.label != "Bounciness":
+            self.slider_prop2 = Slider(ix, curr_y, 220, 14, "Bounciness", 0.0, 1.0, obj.restitution)
+        elif not self.slider_prop2.dragging:
+            self.slider_prop2.value = obj.restitution
+        self.slider_prop2.rect.x, self.slider_prop2.rect.y = ix, curr_y
+        obj.restitution = self.slider_prop2.update_and_draw()
+        return curr_y + 45
+
+    def _inspect_circuits(self, obj, ix: int, curr_y: int) -> int:
+        if getattr(obj, 'comp_type', None) is None:
+            return curr_y
+        pr.draw_text(f"Type: {obj.comp_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
+        curr_y += 18
+        pr.draw_text(f"Current: {abs(obj.current):.3f} A", ix, curr_y, 14, Colors.GRID_MAJOR)
+        curr_y += 24
+
+        match obj.comp_type:
+            case 'switch':
+                state_str = "CLOSED" if obj.state else "OPEN"
+                self.btn_toggle_state.text = f"Switch: {state_str}"
+                self.btn_toggle_state.rect.x, self.btn_toggle_state.rect.y = ix, curr_y
+                if self.btn_toggle_state.update_and_draw():
+                    obj.state = not obj.state
+                return curr_y + 40
+            case 'battery' | 'resistor' | 'bulb':
+                lbl = "Voltage (V)" if obj.comp_type == 'battery' else "Resistance (Ω)"
+                max_v = 100.0 if obj.comp_type == 'battery' else 500.0
+                if self.slider_prop1.label != lbl:
+                    self.slider_prop1 = Slider(ix, curr_y, 220, 14, lbl, 0.1, max_v, obj.val)
+                elif not self.slider_prop1.dragging:
+                    self.slider_prop1.value = obj.val
+                self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
+                obj.val = self.slider_prop1.update_and_draw()
+                return curr_y + 45
+            case _:
+                return curr_y
+
+    def _inspect_optics(self, obj, ix: int, curr_y: int) -> int:
+        if hasattr(obj, 'angle_deg'): # LaserEmitter
+            pr.draw_text("Type: LASER EMITTER", ix, curr_y, 14, Colors.GRID_MAJOR)
+            curr_y += 24
+            if self.slider_prop1.label != "Angle (°)":
+                self.slider_prop1 = Slider(ix, curr_y, 220, 14, "Angle (°)", -180.0, 180.0, obj.angle_deg)
+            elif not self.slider_prop1.dragging:
+                self.slider_prop1.value = obj.angle_deg
+            self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
+            obj.angle_deg = self.slider_prop1.update_and_draw()
+            return curr_y + 45
+        elif getattr(obj, 'elem_type', None) is not None:
+            pr.draw_text(f"Type: {obj.elem_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
+            curr_y += 24
+            lbl = "Angle (°)" if obj.elem_type in ('mirror', 'prism') else "Focal Len"
+            min_v, max_v = (-180.0, 180.0) if 'Angle' in lbl else (-10.0, 10.0)
             if self.slider_prop1.label != lbl:
-                self.slider_prop1 = Slider(ix, iy + 45, 220, 14, lbl, 0.1, 100.0, obj.val)
-            obj.val = self.slider_prop1.update_and_draw()
-            
-        elif hasattr(obj, 'param1'): # Optical element
-            lbl = "Angle (°)" if obj.elem_type == 'mirror' else "Focal Len"
-            if self.slider_prop1.label != lbl:
-                self.slider_prop1 = Slider(ix, iy + 45, 220, 14, lbl, -180.0, 180.0, obj.param1)
+                self.slider_prop1 = Slider(ix, curr_y, 220, 14, lbl, min_v, max_v, obj.param1)
+            elif not self.slider_prop1.dragging:
+                self.slider_prop1.value = obj.param1
+            self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
             obj.param1 = self.slider_prop1.update_and_draw()
+            return curr_y + 45
+        return curr_y
+
+    def _inspect_fields(self, obj, ix: int, curr_y: int) -> int:
+        if getattr(obj, 'source_type', None) is None:
+            return curr_y
+        pr.draw_text(f"Source: {obj.source_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
+        curr_y += 24
+        lbl = "Strength"
+        if self.slider_prop1.label != lbl:
+            self.slider_prop1 = Slider(ix, curr_y, 220, 14, lbl, -20.0, 20.0, obj.val)
+        elif not self.slider_prop1.dragging:
+            self.slider_prop1.value = obj.val
+        self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
+        obj.val = self.slider_prop1.update_and_draw()
+        return curr_y + 45
 
     def _draw_sidebar_kinematics(self, sb_x: int, ty: int) -> None:
         self.btn_s_sphere.rect.x, self.btn_s_sphere.rect.y = sb_x + 15, ty

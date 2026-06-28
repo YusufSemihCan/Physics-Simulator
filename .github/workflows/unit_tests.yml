@@ -32,4 +32,4 @@ jobs:
 
     - name: Run Simulation & Graphics Unit Tests
       run: |
-        xvfb-run python -m unittest discover -s "Unit tests" -p "test_*.py"
+        xvfb-run python -m unittest discover -s "Tests" -p "test_*.py"

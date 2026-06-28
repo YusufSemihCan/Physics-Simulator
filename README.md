@@ -1,6 +1,8 @@
 # Physics Simulator
 
-**Goal:** An intuitive, visual platform for students and educators to explore core physics concepts through interactive multi-domain simulations. The UI and rendering layers are cleanly separated from the physics engine, enabling safe, independent extension of each.
+[![Core Physics Engine by geterktt](https://img.shields.io/badge/Core_Physics_Engine-geterktt-blue?logo=github)](https://github.com/geterktt)
+
+**Goal:** An intuitive, visual platform for students and educators to explore core physics concepts through interactive multi-domain simulations. The UI and rendering layers are cleanly separated from the physics engine (developed in collaboration with [@geterktt](https://github.com/geterktt)), enabling safe, independent extension of each.
 
 ---
 
@@ -257,7 +259,7 @@ flowchart TD
 
 ```
 Physics-Simulator/
-├── Physics/                        # Core deterministic physics (collaborator-owned ⚠️)
+├── Physics/                        # Core deterministic physics (owned by collaborator @geterktt ⚠️)
 │   ├── __init__.py                 # Exports: step_physics(shapes, dt, gravity)
 │   └── engine.py                   # Velocity Verlet, collision, boundary enforcement
 │
@@ -376,7 +378,7 @@ python main.py
 
 | Area | Owner |
 |------|-------|
-| `Physics/` — `step_physics()`, integration, collision | **Collaborator** |
+| `Physics/` — `step_physics()`, integration, collision | **Collaborator ([@geterktt](https://github.com/geterktt))** |
 | `Graphics/`, `Simulation/`, CI, documentation | **Project author** |
 
 ---

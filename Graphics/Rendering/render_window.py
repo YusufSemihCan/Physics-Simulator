@@ -317,8 +317,7 @@ class SimulationRenderer:
             gx = round((mouse_pos.x - cx) / 40.0 * 2.0) / 2.0
             gy = round((cy - mouse_pos.y) / 40.0 * 2.0) / 2.0
             picked = self.circuit_scene.pick_component(gx, gy)
-            if picked:
-                self.selected_shape = picked
+            self.selected_shape = picked
 
     def _render_mode_optics(self, dt: float) -> None:
         sw = pr.get_screen_width()
@@ -497,8 +496,7 @@ class SimulationRenderer:
                     if abs(mouse_pos.x - px) <= w // 2 and abs(mouse_pos.y - py) <= h // 2:
                         clicked_shape = s
                         break
-            if clicked_shape:
-                self.selected_shape = clicked_shape
+            self.selected_shape = clicked_shape
 
     def cleanup(self) -> None:
         pr.close_window()
