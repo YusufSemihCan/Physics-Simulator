@@ -1,5 +1,6 @@
 import pyray as pr
 import random
+from collections import deque
 from dataclasses import dataclass
 from typing import Dict, List
 from Graphics.Rendering.render_colors import Colors
@@ -17,20 +18,16 @@ class TrailRenderer:
     """Renders fading motion trajectories behind moving physics entities."""
     def __init__(self, max_points: int = 50):
         self.max_points = max_points
-        self.trails: Dict[str, List[pr.Vector3]] = {}
+        # deque per entity avoids O(n) pop(0) on every frame
+        self.trails: Dict[str, deque] = {}
         self.enabled = True
 
     def add_point(self, entity_id: str, pos: pr.Vector3) -> None:
         if not self.enabled:
             return
         if entity_id not in self.trails:
-            self.trails[entity_id] = []
-        
-        # Append new position copy
-        pts = self.trails[entity_id]
-        pts.append(pr.Vector3(pos.x, pos.y, pos.z))
-        if len(pts) > self.max_points:
-            pts.pop(0)
+            self.trails[entity_id] = deque(maxlen=self.max_points)
+        self.trails[entity_id].append(pr.Vector3(pos.x, pos.y, pos.z))
 
     def draw_3d(self) -> None:
         if not self.enabled:
@@ -80,31 +77,28 @@ class ParticleSystem:
     def update_and_draw(self, dt: float) -> None:
         if not self.enabled:
             return
-        active_particles = []
+        next_particles: List[Particle] = []
         for p in self.particles:
             p.lifetime -= dt
             if p.lifetime <= 0:
                 continue
-            
-            # Physics kinematic update (gravity downward acceleration)
+
+            # Kinematic integration + floor bounce
             p.vel.y -= 9.81 * dt
             p.pos.x += p.vel.x * dt
             p.pos.y += p.vel.y * dt
             p.pos.z += p.vel.z * dt
-            
-            # Bounce off floor (y = 0)
             if p.pos.y < 0.0:
                 p.pos.y = 0.0
                 p.vel.y *= -0.5
                 p.vel.x *= 0.8
                 p.vel.z *= 0.8
 
-            # Calculate fading color and shrink size
-            alpha = int(255 * (p.lifetime / p.max_lifetime))
+            # Fade alpha and shrink size proportionally to remaining lifetime
+            ratio = p.lifetime / p.max_lifetime
+            alpha = int(255 * ratio)
             draw_color = pr.Color(p.color.r, p.color.g, p.color.b, alpha)
-            current_size = p.size * (p.lifetime / p.max_lifetime)
-            
-            pr.draw_cube(p.pos, current_size, current_size, current_size, draw_color)
-            active_particles.append(p)
-            
-        self.particles = active_particles
+            pr.draw_cube(p.pos, p.size * ratio, p.size * ratio, p.size * ratio, draw_color)
+            next_particles.append(p)
+
+        self.particles = next_particles

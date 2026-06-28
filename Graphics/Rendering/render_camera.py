@@ -6,9 +6,9 @@ class CameraController:
     def __init__(self, target: pr.Vector3 = pr.Vector3(0.0, 0.0, 0.0), distance: float = 20.0):
         self.target = pr.Vector3(target.x, target.y, target.z)
         self.distance = distance
-        self.yaw = math.radians(45.0)    # Azimuth angle around Y axis
-        self.pitch = math.radians(30.0)  # Elevation angle above XZ plane
-        
+        self.yaw   = math.radians(45.0)   # Azimuth angle around Y axis
+        self.pitch = math.radians(30.0)   # Elevation angle above XZ plane
+
         self.camera = pr.Camera3D(
             pr.Vector3(0.0, 0.0, 0.0),
             self.target,
@@ -16,6 +16,13 @@ class CameraController:
             45.0,
             pr.CameraProjection.CAMERA_PERSPECTIVE
         )
+        # Preset key → handler map built once; looked up O(1) in handle_input
+        self._preset_keys = {
+            pr.KeyboardKey.KEY_ONE:   self.set_preset_default,
+            pr.KeyboardKey.KEY_TWO:   self.set_preset_top,
+            pr.KeyboardKey.KEY_THREE: self.set_preset_side,
+            pr.KeyboardKey.KEY_FOUR:  self.set_preset_front,
+        }
         self.update_camera_vectors()
 
     def update_camera_vectors(self) -> None:
@@ -76,15 +83,11 @@ class CameraController:
             self.distance = max(2.0, min(150.0, self.distance - wheel_move * zoom_speed))
             self.update_camera_vectors()
 
-        # 4. View Presets (Keys 1, 2, 3, 4)
-        if pr.is_key_pressed(pr.KeyboardKey.KEY_ONE):
-            self.set_preset_default()
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_TWO):
-            self.set_preset_top()
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_THREE):
-            self.set_preset_side()
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_FOUR):
-            self.set_preset_front()
+        # 4. View Presets (Keys 1–4) — dispatch table lookup
+        for key, preset_fn in self._preset_keys.items():
+            if pr.is_key_pressed(key):
+                preset_fn()
+                break
 
     def set_preset_default(self) -> None:
         self.target = pr.Vector3(0.0, 1.0, 0.0)

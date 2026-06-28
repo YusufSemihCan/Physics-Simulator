@@ -18,31 +18,20 @@ class WorkspaceUI:
         # Active unfolding dropdown state: None, 'file', 'mode', 'view'
         self.active_dropdown = None
         
-        # Top Bar Dropdown Triggers
+        # Top Bar Dropdown Triggers — Mode switching is done from the main menu, not mid-simulation
         self.btn_top_file = Button(10, 5, 80, 30, "File ▼")
-        self.btn_top_mode = Button(100, 5, 100, 30, "Mode ▼")
-        self.btn_top_view = Button(210, 5, 80, 30, "View ▼")
-        
+        self.btn_top_view = Button(100, 5, 80, 30, "View ▼")
         # File Dropdown Items
         self.btn_f_new = Button(10, 40, 160, 32, "New Simulation")
         self.btn_f_load = Button(10, 74, 160, 32, "Load Scenario")
         self.btn_f_save = Button(10, 108, 160, 32, "Save Scenario")
         self.btn_f_menu = Button(10, 142, 160, 32, "Main Menu")
         self.btn_f_quit = Button(10, 176, 160, 32, "Quit App")
-        
-        # Mode Dropdown Items
-        self.btn_m_3d = Button(100, 40, 180, 32, "3D Kinematics")
-        self.btn_m_2d = Button(100, 74, 180, 32, "2D Kinetics")
-        self.btn_m_circ = Button(100, 108, 180, 32, "DC Circuits")
-        self.btn_m_opt = Button(100, 142, 180, 32, "Ray Optics")
-        self.btn_m_fld = Button(100, 176, 180, 32, "EM Fields")
-        
+
         # View Dropdown Items
-        self.btn_v_grid = Button(210, 40, 150, 32, "Toggle Grid")
-        self.btn_v_axis = Button(210, 74, 150, 32, "Toggle Axis")
-        self.btn_v_settings = Button(210, 108, 150, 32, "Settings")
-        
-        # Bottom Bar Playback Controls
+        self.btn_v_grid = Button(100, 40, 150, 32, "Toggle Grid")
+        self.btn_v_axis = Button(100, 74, 150, 32, "Toggle Axis")
+        self.btn_v_settings = Button(100, 108, 150, 32, "Settings")
         self.btn_play = Button(0, 0, 110, 34, "Play / Pause")
         self.btn_stop = Button(0, 0, 100, 34, "Stop / Reset")
         self.btn_rewind = Button(0, 0, 130, 34, "<< Rewind (Hold)")
@@ -78,12 +67,10 @@ class WorkspaceUI:
         # Dispatch lookups for clean optimization
         self.dropdown_rects = {
             'file': pr.Rectangle(10, 40, 160, 175),
-            'mode': pr.Rectangle(100, 40, 180, 175),
-            'view': pr.Rectangle(210, 40, 150, 110)
+            'view': pr.Rectangle(100, 40, 150, 110)
         }
         self.dropdown_draw_map = {
             'file': self._draw_dropdown_file,
-            'mode': self._draw_dropdown_mode,
             'view': self._draw_dropdown_view
         }
         self.sidebar_draw_map = {
@@ -92,6 +79,14 @@ class WorkspaceUI:
             SimulationMode.CIRCUITS: self._draw_sidebar_circuits,
             SimulationMode.OPTICS: self._draw_sidebar_optics,
             SimulationMode.FIELDS: self._draw_sidebar_fields
+        }
+        # Built once; looked up every frame in update_and_draw
+        self._mode_names = {
+            SimulationMode.KINEMATICS_3D: "3D Kinematics",
+            SimulationMode.KINETIC_2D: "2D Kinetics",
+            SimulationMode.CIRCUITS: "DC Circuits",
+            SimulationMode.OPTICS: "Ray Optics",
+            SimulationMode.FIELDS: "Electromagnetic Fields"
         }
 
     def is_over_ui(self, mouse_pos: pr.Vector2) -> bool:
@@ -131,20 +126,11 @@ class WorkspaceUI:
             # Dropdown toggle buttons
             if self.btn_top_file.update_and_draw():
                 self.active_dropdown = 'file' if self.active_dropdown != 'file' else None
-            if self.btn_top_mode.update_and_draw():
-                self.active_dropdown = 'mode' if self.active_dropdown != 'mode' else None
             if self.btn_top_view.update_and_draw():
                 self.active_dropdown = 'view' if self.active_dropdown != 'view' else None
                 
             # Mode info & FPS readout on right side
-            mode_names = {
-                SimulationMode.KINEMATICS_3D: "3D Kinematics",
-                SimulationMode.KINETIC_2D: "2D Kinetics",
-                SimulationMode.CIRCUITS: "DC Circuits",
-                SimulationMode.OPTICS: "Ray Optics",
-                SimulationMode.FIELDS: "Electromagnetic Fields"
-            }
-            title_str = f"Active Domain: {mode_names.get(self.app.sim_mode, 'Unknown')}"
+            title_str = f"Active Domain: {self._mode_names.get(self.app.sim_mode, 'Unknown')}"
             pr.draw_text(title_str, sw - 320, 12, 16, Colors.UI_ACTIVE)
             pr.draw_fps(sw - 90, 10)
 
@@ -226,37 +212,27 @@ class WorkspaceUI:
             self.app.should_quit = True
             self.active_dropdown = None
 
-    def _draw_dropdown_mode(self) -> None:
-        pr.draw_rectangle(100, 40, 180, 215, Colors.UI_PANEL)
-        pr.draw_rectangle_lines(100, 40, 180, 215, Colors.UI_BORDER)
-        if self.btn_m_3d.update_and_draw():
-            self.app.switch_mode(SimulationMode.KINEMATICS_3D)
-            self.active_dropdown = None
-        if self.btn_m_2d.update_and_draw():
-            self.app.switch_mode(SimulationMode.KINETIC_2D)
-            self.active_dropdown = None
-        if self.btn_m_circ.update_and_draw():
-            self.app.switch_mode(SimulationMode.CIRCUITS)
-            self.active_dropdown = None
-        if self.btn_m_opt.update_and_draw():
-            self.app.switch_mode(SimulationMode.OPTICS)
-            self.active_dropdown = None
-        if self.btn_m_fld.update_and_draw():
-            self.app.switch_mode(SimulationMode.FIELDS)
-            self.active_dropdown = None
-
     def _draw_dropdown_view(self) -> None:
-        pr.draw_rectangle(210, 40, 150, 115, Colors.UI_PANEL)
-        pr.draw_rectangle_lines(210, 40, 150, 115, Colors.UI_BORDER)
+        pr.draw_rectangle(100, 40, 150, 115, Colors.UI_PANEL)
+        pr.draw_rectangle_lines(100, 40, 150, 115, Colors.UI_BORDER)
         if self.btn_v_grid.update_and_draw():
             self.app.grid.show_grid = not self.app.grid.show_grid
             self.active_dropdown = None
         if self.btn_v_axis.update_and_draw():
-            self.app.axis_indicator.show = getattr(self.app.axis_indicator, 'show', True)
+            self.app.axis_indicator.show = not getattr(self.app.axis_indicator, 'show', True)
             self.active_dropdown = None
         if self.btn_v_settings.update_and_draw():
             self.app.current_screen = AppScreen.SETTINGS
             self.active_dropdown = None
+
+    @staticmethod
+    def _get_obj_id(obj) -> str:
+        """Return the best available ID string for any selected object type."""
+        for attr in ('shape_id', 'elem_id', 'comp_id', 'source_id'):
+            val = getattr(obj, attr, None)
+            if val is not None:
+                return str(val)
+        return 'Item'
 
     def _draw_inspector(self, ix: int, iy: int) -> None:
         mode = self.app.sim_mode
@@ -266,7 +242,7 @@ class WorkspaceUI:
             pr.draw_text("Click an item on canvas", ix, iy + 20, 14, Colors.GRID_MAJOR)
             return
 
-        pr.draw_text(f"Selected: {getattr(obj, 'shape_id', getattr(obj, 'elem_id', getattr(obj, 'comp_id', getattr(obj, 'source_id', 'Item'))))}", ix, iy, 15, Colors.TEXT)
+        pr.draw_text(f"Selected: {self._get_obj_id(obj)}", ix, iy, 15, Colors.TEXT)
         
         self.btn_remove_obj.rect.x, self.btn_remove_obj.rect.y = ix, iy + 140
         if self.btn_remove_obj.update_and_draw():

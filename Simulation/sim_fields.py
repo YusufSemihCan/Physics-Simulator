@@ -3,12 +3,14 @@ import uuid
 from typing import List, Tuple
 
 class FieldSource:
+    __slots__ = ('source_id', 'source_type', 'x', 'y', 'val', 'angle_deg')
+
     def __init__(self, source_type: str, x: float, y: float, val: float = 1.0, angle_deg: float = 0.0):
         self.source_id = str(uuid.uuid4())[:8]
-        self.source_type = source_type # 'charge', 'magnet'
+        self.source_type = source_type  # 'charge', 'magnet'
         self.x = x
         self.y = y
-        self.val = val # Charge (Coulombs) or Magnetic strength
+        self.val = val          # Charge (Coulombs) or Magnetic strength
         self.angle_deg = angle_deg
 
 class FieldScene:
@@ -43,32 +45,29 @@ class FieldScene:
 
 class FieldCalculator:
     @staticmethod
-    def calculate_vector_at(scene: FieldScene, gx: float, gy: float) -> Tuple[float, float, float]:
-        """Returns (vx, vy, magnitude) of the field at coordinate (gx, gy)."""
+    def calculate_vector_at(scene: 'FieldScene', gx: float, gy: float) -> Tuple[float, float, float]:
+        """Returns (vx, vy, magnitude) of the summed field at coordinate (gx, gy)."""
         fx, fy = 0.0, 0.0
         for s in scene.sources:
             dx = gx - s.x
             dy = gy - s.y
-            dist_sq = dx*dx + dy*dy
-            if dist_sq < 0.1:
-                dist_sq = 0.1
-            dist = dist_sq ** 0.5
+            dist_sq = max(0.1, dx * dx + dy * dy)
+            dist    = dist_sq ** 0.5
+            inv_dist = 1.0 / dist  # compute once, reuse below
 
             if s.source_type == 'charge':
                 # Coulomb field E = k * q / r^2 * r_hat
                 mag = (8.99 * s.val) / dist_sq
-                fx += mag * (dx / dist)
-                fy += mag * (dy / dist)
+                fx += mag * dx * inv_dist
+                fy += mag * dy * inv_dist
             elif s.source_type == 'magnet':
-                # Dipole approximation m = strength * (cos, sin)
+                # Dipole approximation B ~ 3r̂(m·r̂) - m
                 m_rad = math.radians(s.angle_deg)
                 mx = math.cos(m_rad) * s.val * 5.0
                 my = math.sin(m_rad) * s.val * 5.0
                 dot = mx * dx + my * dy
-                # B ~ 3 * r_hat * (m . r_hat) - m
                 r5 = dist_sq * dist_sq * dist
                 fx += (3.0 * dx * dot - mx * dist_sq) / r5
                 fy += (3.0 * dy * dot - my * dist_sq) / r5
 
-        mag = math.hypot(fx, fy)
-        return (fx, fy, mag)
+        return (fx, fy, math.hypot(fx, fy))

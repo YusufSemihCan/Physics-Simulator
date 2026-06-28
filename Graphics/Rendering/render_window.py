@@ -6,7 +6,6 @@ from Graphics.Rendering.render_camera import CameraController
 from Graphics.Rendering.render_particles import TrailRenderer, ParticleSystem
 from Graphics.Rendering.render_vectors import VectorRenderer
 from Graphics.UI.ui_axis_indicator import AxisIndicator
-from Graphics.UI.ui_elements import Panel, Slider, Toggle, Button
 from Graphics.UI.ui_menu import AppScreen, MainMenuScreen
 from Graphics.UI.ui_settings import SettingsScreen
 from Graphics.UI.ui_load_scenario import LoadScenarioScreen
@@ -59,25 +58,6 @@ class SimulationRenderer:
         self.selected_shape = None
         self.graph_renderer = GraphRenderer(self)
 
-        # Initialize UI sidebar panel and simulation widgets
-        self.ui_panel = Panel(15, 60, 270, 415, "Simulation Controls")
-        self.slider_gravity = Slider(30, 105, 240, 12, "Gravity (m/s^2)", -20.0, 20.0, -9.81)
-        self.toggle_grid = Toggle(30, 155, 18, "Show Grid Lines", True)
-
-        # Playback Controls
-        self.btn_play = Button(30, 195, 115, 34, "Play / Pause")
-        self.btn_stop = Button(155, 195, 115, 34, "Stop / Reset")
-        self.btn_rewind = Button(30, 235, 240, 34, "<< Rewind 1s (Hold)")
-
-        # Spawning Controls
-        self.btn_add_sphere = Button(30, 290, 115, 34, "+ Sphere")
-        self.btn_add_cube = Button(155, 290, 115, 34, "+ Cube")
-        self.btn_clear = Button(30, 330, 240, 34, "Clear All Shapes")
-
-        # Navigation Controls
-        self.btn_scenarios = Button(30, 380, 240, 34, "Scenario File Tree")
-        self.btn_menu = Button(30, 424, 240, 34, "Main Menu")
-
         # Navigation screen states
         self.current_screen = AppScreen.MAIN_MENU
         self.main_menu = MainMenuScreen()
@@ -99,12 +79,6 @@ class SimulationRenderer:
         self.pan_y = 0.0
         self.switch_mode(SimulationMode.KINEMATICS_3D)
 
-        # Circuit tool buttons
-        self.btn_c_wire = Button(30, 290, 115, 30, "Wire")
-        self.btn_c_bat = Button(155, 290, 115, 30, "Battery")
-        self.btn_c_res = Button(30, 330, 115, 30, "Resistor")
-        self.btn_c_sw = Button(155, 330, 115, 30, "Switch")
-        self.btn_c_bulb = Button(90, 370, 115, 30, "Bulb")
         self.workspace_ui = WorkspaceUI(self)
 
     def switch_mode(self, mode: SimulationMode) -> None:
@@ -114,6 +88,9 @@ class SimulationRenderer:
         self.placement_mode = None
         self.pan_x = 0.0
         self.pan_y = 0.0
+
+        # Rebuild ScenarioManager so file tree points to this mode's directory
+        self.scenarios = ScenarioManager(mode=mode)
 
         # Free inactive mode scenes/renderers
         self.circuit_scene = None
@@ -139,6 +116,10 @@ class SimulationRenderer:
                 self.fields_scene = FieldScene()
                 self.fields_scene.create_default_scene()
                 self.fields_renderer = FieldsRenderer()
+
+        # Refresh load screen so its file tree reflects the new mode directory
+        if hasattr(self, 'load_scenario_screen'):
+            self.load_scenario_screen.refresh_for_mode()
 
     def handle_input(self) -> None:
         match self.current_screen:
@@ -299,7 +280,8 @@ class SimulationRenderer:
             return
 
         # Advance backend simulation integration
-        gravity = self.slider_gravity.value
+        # gravity is driven by the live workspace slider, not the old panel slider
+        gravity = self.workspace_ui.slider_gravity.value
         self.sim.step(dt, gravity, particle_system=self.particles, trail_renderer=self.trails)
 
         if self.sim.state == "PLAYING" and self.selected_shape:
@@ -517,7 +499,6 @@ class SimulationRenderer:
                         break
             if clicked_shape:
                 self.selected_shape = clicked_shape
-        pr.end_drawing()
 
     def cleanup(self) -> None:
         pr.close_window()

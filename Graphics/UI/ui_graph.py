@@ -1,5 +1,6 @@
 import pyray as pr
 import math
+from collections import deque
 from typing import List
 from Graphics.Rendering.render_colors import Colors
 from Graphics.UI.ui_elements import Button
@@ -8,12 +9,13 @@ class GraphRenderer:
     """Renders real-time kinematics inspection data and dynamic time-series graphing curves."""
     def __init__(self, app):
         self.app = app
-        self.max_points = 300 # 5 seconds at 60 FPS
-        self.history_h: List[float] = []
-        self.history_v: List[float] = []
-        self.history_ke: List[float] = []
-        self.history_pe: List[float] = []
-        self.history_tot: List[float] = []
+        self.max_points = 300  # 5 seconds at 60 FPS
+        # deque with maxlen automatically discards oldest samples — O(1) append, no pop(0)
+        self.history_h:   deque[float] = deque(maxlen=self.max_points)
+        self.history_v:   deque[float] = deque(maxlen=self.max_points)
+        self.history_ke:  deque[float] = deque(maxlen=self.max_points)
+        self.history_pe:  deque[float] = deque(maxlen=self.max_points)
+        self.history_tot: deque[float] = deque(maxlen=self.max_points)
 
         self.active_tab = "e" # 'h' (Height), 'v' (Velocity), 'e' (Energy)
         self.btn_h = Button(0, 0, 90, 24, "Height")
@@ -45,13 +47,7 @@ class GraphRenderer:
         self.history_ke.append(ke_val)
         self.history_pe.append(pe_val)
         self.history_tot.append(tot_val)
-
-        if len(self.history_h) > self.max_points:
-            self.history_h.pop(0)
-            self.history_v.pop(0)
-            self.history_ke.pop(0)
-            self.history_pe.pop(0)
-            self.history_tot.pop(0)
+        # No manual pop needed — deque(maxlen) handles overflow automatically
 
     def draw_polyline(self, data: List[float], rect: pr.Rectangle, min_val: float, max_val: float, color: pr.Color) -> None:
         if len(data) < 2:

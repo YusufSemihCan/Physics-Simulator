@@ -8,9 +8,9 @@ class LoadScenarioScreen:
     """Dedicated file tree load screen allowing direct file selection and classroom scenario management."""
     def __init__(self, app):
         self.app = app
+        self._root_dir: str = self.app.scenarios.scenarios_dir
         scenario_list = self.app.scenarios.list_scenarios() or ["Default"]
-        root_dir = getattr(self.app.scenarios, 'scenarios_dir', 'Simulation/scenarios')
-        self.selector = FileTreeSelector(0, 0, 580, 310, root_dir, scenario_list, 0)
+        self.selector = FileTreeSelector(0, 0, 580, 310, self._root_dir, scenario_list, 0)
         self.btn_launch = Button(0, 0, 180, 40, "Load Selected")
         self.btn_save = Button(0, 0, 180, 40, "Save Active")
         self.btn_new_folder = Button(0, 0, 180, 40, "New Folder")
@@ -27,6 +27,13 @@ class LoadScenarioScreen:
         self.btn_modal_confirm = Button(0, 0, 140, 36, "Confirm")
         self.btn_modal_cancel = Button(0, 0, 140, 36, "Cancel")
 
+    def refresh_for_mode(self) -> None:
+        """Re-sync root dir and file list when the active mode changes."""
+        self._root_dir = self.app.scenarios.scenarios_dir
+        self.selector.root_dir = self._root_dir
+        self.selector.root_display = os.path.basename(self._root_dir) or self._root_dir
+        self.refresh_list()
+
     def refresh_list(self) -> None:
         lst = self.app.scenarios.list_scenarios() or ["Default"]
         self.selector.options = lst
@@ -40,8 +47,7 @@ class LoadScenarioScreen:
         return "Default"
 
     def is_item_folder(self, name: str) -> bool:
-        root_dir = getattr(self.app.scenarios, 'scenarios_dir', 'Simulation/scenarios')
-        full_path = os.path.join(root_dir, name)
+        full_path = os.path.join(self._root_dir, name)
         return os.path.isdir(full_path) or any(o.replace("\\", "/").startswith(name.replace("\\", "/") + "/") for o in self.selector.options)
 
     def set_notification(self, msg: str) -> None:

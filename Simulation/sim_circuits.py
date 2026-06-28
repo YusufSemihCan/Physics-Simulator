@@ -4,6 +4,8 @@ import uuid
 from typing import List, Dict, Optional
 
 class CircuitNode:
+    __slots__ = ('node_id', 'x', 'y', 'voltage', 'fixed_voltage')
+
     def __init__(self, x: float, y: float, node_id: Optional[str] = None):
         self.node_id = node_id or str(uuid.uuid4())[:8]
         self.x = x
@@ -12,22 +14,26 @@ class CircuitNode:
         self.fixed_voltage = False
 
 class CircuitComponent:
+    __slots__ = ('comp_id', 'comp_type', 'node_a', 'node_b', 'val', 'current', 'state')
+
+    # Fixed resistances for passive component types
+    _FIXED_R = {'wire': 0.001, 'battery': 0.01}
+
     def __init__(self, comp_type: str, node_a: CircuitNode, node_b: CircuitNode, val: float = 10.0):
         self.comp_id = str(uuid.uuid4())[:8]
-        self.comp_type = comp_type # 'battery', 'resistor', 'switch', 'bulb', 'wire'
+        self.comp_type = comp_type  # 'battery', 'resistor', 'switch', 'bulb', 'wire'
         self.node_a = node_a
         self.node_b = node_b
-        self.val = val # Voltage for battery, Resistance for others
+        self.val = val  # Voltage for battery, Resistance for others
         self.current = 0.0
-        self.state = True # Closed/Open for switch
+        self.state = True  # Closed/Open for switch
 
     def get_resistance(self) -> float:
-        if self.comp_type == 'wire':
-            return 0.001
-        elif self.comp_type == 'switch':
+        if self.comp_type == 'switch':
             return 0.001 if self.state else 1e9
-        elif self.comp_type == 'battery':
-            return 0.01 # Internal resistance
+        fixed = self._FIXED_R.get(self.comp_type)
+        if fixed is not None:
+            return fixed
         return max(0.01, self.val)
 
 class CircuitScene:

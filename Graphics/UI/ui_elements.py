@@ -212,12 +212,13 @@ class NodeSelector:
 
 class FileTreeSelector:
     """A vertical hierarchical file tree widget allowing direct file browser selection and drag & drop rearrangement."""
-    def __init__(self, x: int, y: int, width: int, height: int, root_name: str, options: list[str], current_index: int = 0):
+    def __init__(self, x: int, y: int, width: int, height: int, root_dir: str, options: list[str], current_index: int = 0):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
-        self.root_name = root_name
+        self.root_dir = root_dir        # Filesystem path used for all os.path operations
+        self.root_display = os.path.basename(root_dir) or root_dir  # Short label for header
         self.options = options
         self.current_index = current_index
         self.scroll_offset = 0
@@ -247,7 +248,7 @@ class FileTreeSelector:
             self.dragging_index = -1
 
         pr.draw_rectangle(self.x, self.y, self.width, header_h, Colors.UI_ACTIVE if (is_header_hovered and self.dragging_index != -1) else Colors.GRID_MINOR)
-        pr.draw_text(f"[DIR] {self.root_name}/ (Drop here for root)", self.x + 12, self.y + 8, 16, Colors.UI_PANEL if (is_header_hovered and self.dragging_index != -1) else Colors.UI_ACTIVE)
+        pr.draw_text(f"[DIR] {self.root_display}/ (Drop here for root)", self.x + 12, self.y + 8, 16, Colors.UI_PANEL if (is_header_hovered and self.dragging_index != -1) else Colors.UI_ACTIVE)
         pr.draw_line(self.x, self.y + header_h, self.x + self.width, self.y + header_h, Colors.GRID_MAJOR)
 
         # Handle wheel scrolling if hovered
@@ -274,7 +275,7 @@ class FileTreeSelector:
                 elif left_released and self.dragging_index != -1 and self.dragging_index != i:
                     src_opt = self.options[self.dragging_index]
                     target_opt = self.options[i]
-                    full_target = os.path.join(self.root_name, target_opt)
+                    full_target = os.path.join(self.root_dir, target_opt)
                     is_target_dir = os.path.isdir(full_target) or any(o.replace("\\", "/").startswith(target_opt.replace("\\", "/") + "/") for o in self.options)
                     dest_folder = target_opt if is_target_dir else os.path.dirname(target_opt).replace("\\", "/")
                     self.drag_move_request = (src_opt, dest_folder)
@@ -291,7 +292,7 @@ class FileTreeSelector:
             depth = len(parts) - 1
             basename = parts[-1]
 
-            full_path = os.path.join(self.root_name, opt)
+            full_path = os.path.join(self.root_dir, opt)
             is_dir = os.path.isdir(full_path) or any(o.replace("\\", "/").startswith(opt.replace("\\", "/") + "/") for o in self.options)
 
             parent_prefix = "/".join(parts[:-1])

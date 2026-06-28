@@ -1,6 +1,7 @@
 import pyray as pr
 import math
 from Simulation.sim_optics import OpticsSolver
+from Graphics.Rendering.render_fields import _draw_scrolling_grid
 
 class OpticsRenderer:
     """Renders laser beams, mirrors, and glass refraction lenses."""
@@ -14,19 +15,7 @@ class OpticsRenderer:
         cx = int(sw // 2 + pan_x)
         cy = int(sh // 2 + pan_y)
 
-        # Draw infinite scrolling grid background
-        start_x = int(cx % self.scale)
-        for lx in range(start_x, sw, int(self.scale)):
-            pr.draw_line(lx, 0, lx, sh, pr.Color(30, 35, 45, 100))
-        start_y = int(cy % self.scale)
-        for ly in range(start_y, sh, int(self.scale)):
-            pr.draw_line(0, ly, sw, ly, pr.Color(30, 35, 45, 100))
-
-        # Draw origin axes
-        if 0 <= cx <= sw:
-            pr.draw_line(cx, 0, cx, sh, pr.Color(100, 100, 110, 150))
-        if 0 <= cy <= sh:
-            pr.draw_line(0, cy, sw, cy, pr.Color(100, 100, 110, 150))
+        _draw_scrolling_grid(cx, cy, sw, sh, self.scale)
 
         # Draw optical elements
         for el in scene.elements:
