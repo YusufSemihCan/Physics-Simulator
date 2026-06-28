@@ -1,18 +1,8 @@
 name: Unit Tests
-run-name: Unit Tests
 
-# Triggers on push or pull request to any branch, and allows manual execution via workflow_dispatch.
+# Runs on push/PR to any branch, and allows manual execution via the "Run workflow" button.
 on:
   workflow_dispatch:
-    inputs:
-      run_all:
-        description: 'Run all unit tests'
-        required: false
-        default: 'true'
-  push:
-    branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
   push:
     branches: [ "**" ]
   pull_request:
