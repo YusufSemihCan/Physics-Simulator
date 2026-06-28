@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 import pyray as pr
-from typing import List, Optional
+from typing import List, Optional, Union
 from Simulation.sim_shapes import PhysicsShape
 from Simulation.sim_controller import SimulationScene
 from Simulation.sim_modes import SimulationMode
@@ -27,11 +27,23 @@ class ScenarioManager:
     ``Simulation/scenarios/<mode>/``, preventing cross-domain file contamination.
     """
 
-    def __init__(self, mode: SimulationMode = SimulationMode.KINEMATICS_3D):
-        subfolder = _MODE_DIRS.get(mode, "kinematics")
-        self.scenarios_dir = os.path.join(_BASE_DIR, subfolder)
-        self.mode = mode
-        self._migrate_legacy_files()
+    def __init__(self, mode: Union[SimulationMode, str] = SimulationMode.KINEMATICS_3D, scenarios_dir: Optional[str] = None):
+        is_custom_dir = False
+        if isinstance(mode, str):
+            self.scenarios_dir = mode
+            self.mode = SimulationMode.KINEMATICS_3D
+            is_custom_dir = True
+        elif scenarios_dir is not None:
+            self.scenarios_dir = scenarios_dir
+            self.mode = mode
+            is_custom_dir = True
+        else:
+            subfolder = _MODE_DIRS.get(mode, "kinematics")
+            self.scenarios_dir = os.path.join(_BASE_DIR, subfolder)
+            self.mode = mode
+
+        if not is_custom_dir:
+            self._migrate_legacy_files()
         self.ensure_presets()
 
     # ------------------------------------------------------------------
@@ -51,7 +63,7 @@ class ScenarioManager:
                 dest = os.path.join(kinematics_dir, entry)
                 if not os.path.exists(dest):
                     shutil.move(full, dest)
-                    print(f"[~] Migrated legacy scenario: {entry} → kinematics/")
+                    print(f"[~] Migrated legacy scenario: {entry} -> kinematics/")
 
     def ensure_presets(self) -> None:
         """Creates the mode's scenarios directory and generates built-in presets if empty."""
@@ -167,13 +179,13 @@ class ScenarioManager:
                 dest_path = os.path.join(target_dir, os.path.basename(src_name))
                 if os.path.normpath(src_dir) != os.path.normpath(dest_path):
                     shutil.move(src_dir, dest_path)
-                    print(f"[+] Moved folder {src_dir} → {dest_path}")
+                    print(f"[+] Moved folder {src_dir} -> {dest_path}")
                 return True
             elif os.path.exists(src_file):
                 dest_path = os.path.join(target_dir, os.path.basename(src_name) + ".json")
                 if os.path.normpath(src_file) != os.path.normpath(dest_path):
                     shutil.move(src_file, dest_path)
-                    print(f"[+] Moved scenario {src_file} → {dest_path}")
+                    print(f"[+] Moved scenario {src_file} -> {dest_path}")
                 return True
         except Exception as e:
             print(f"[!] Error moving scenario: {e}")
@@ -207,7 +219,7 @@ class ScenarioManager:
                     return False
                 os.makedirs(os.path.dirname(new_dir), exist_ok=True)
                 shutil.move(old_dir, new_dir)
-                print(f"[+] Renamed folder {old_dir} → {new_dir}")
+                print(f"[+] Renamed folder {old_dir} -> {new_dir}")
                 return True
             elif os.path.exists(old_file):
                 if os.path.exists(new_file) or os.path.exists(new_dir):
@@ -223,7 +235,7 @@ class ScenarioManager:
                         json.dump(data, f, indent=4)
                 except Exception as e:
                     print(f"[!] Warning: could not update internal name field: {e}")
-                print(f"[+] Renamed scenario {old_file} → {new_file}")
+                print(f"[+] Renamed scenario {old_file} -> {new_file}")
                 return True
         except Exception as e:
             print(f"[!] Error renaming scenario: {e}")
