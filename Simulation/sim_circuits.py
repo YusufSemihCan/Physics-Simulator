@@ -62,9 +62,17 @@ class CircuitScene:
 
     def pick_component(self, x: float, y: float, threshold: float = 0.8):
         for comp in self.components:
-            mx = (comp.node_a.x + comp.node_b.x) / 2.0
-            my = (comp.node_a.y + comp.node_b.y) / 2.0
-            if math.hypot(mx - x, my - y) <= threshold:
+            x1, y1 = comp.node_a.x, comp.node_a.y
+            x2, y2 = comp.node_b.x, comp.node_b.y
+            dx = x2 - x1
+            dy = y2 - y1
+            l2 = dx*dx + dy*dy
+            if l2 == 0:
+                dist = math.hypot(x - x1, y - y1)
+            else:
+                t = max(0.0, min(1.0, ((x - x1)*dx + (y - y1)*dy) / l2))
+                dist = math.hypot(x - (x1 + t*dx), y - (y1 + t*dy))
+            if dist <= threshold:
                 return comp
         return None
 

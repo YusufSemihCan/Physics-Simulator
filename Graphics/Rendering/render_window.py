@@ -81,6 +81,19 @@ class SimulationRenderer:
 
         self.workspace_ui = WorkspaceUI(self)
 
+        # Dictionary dispatch map for keyboard shortcuts to avoid elif chains
+        self._key_actions = {
+            pr.KeyboardKey.KEY_P: lambda: self.sim.toggle_play(),
+            pr.KeyboardKey.KEY_SPACE: lambda: self.sim.toggle_play(),
+            pr.KeyboardKey.KEY_S: self._stop_sim,
+            pr.KeyboardKey.KEY_G: self._toggle_grid,
+            pr.KeyboardKey.KEY_V: lambda: setattr(self.vectors, 'enabled', not self.vectors.enabled),
+            pr.KeyboardKey.KEY_T: lambda: setattr(self.trails, 'enabled', not self.trails.enabled),
+            pr.KeyboardKey.KEY_F11: pr.toggle_borderless_windowed,
+            pr.KeyboardKey.KEY_B: pr.toggle_borderless_windowed,
+            pr.KeyboardKey.KEY_R: self._cycle_resolution,
+        }
+
     def switch_mode(self, mode: SimulationMode) -> None:
         self.sim_mode = mode
         self.mode_3d = (mode == SimulationMode.KINEMATICS_3D)
@@ -189,27 +202,27 @@ class SimulationRenderer:
             if pr.is_key_down(pr.KeyboardKey.KEY_D):
                 self.pan_x -= pan_speed
 
-        # Keyboard shortcuts for classroom playback & features
-        if pr.is_key_pressed(pr.KeyboardKey.KEY_P) or pr.is_key_pressed(pr.KeyboardKey.KEY_SPACE):
-            self.sim.toggle_play()
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_S):
-            self.sim.stop()
-            self.trails.clear()
-        elif pr.is_key_down(pr.KeyboardKey.KEY_LEFT):
+        # Keyboard shortcuts via dictionary dispatch
+        for key, action in self._key_actions.items():
+            if pr.is_key_pressed(key):
+                action()
+                break
+
+        if pr.is_key_down(pr.KeyboardKey.KEY_LEFT):
             self.sim.rewind(steps=5)
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_G):
-            self.grid.show_grid = not self.grid.show_grid
-            self.toggle_grid.state = self.grid.show_grid
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_V):
-            self.vectors.enabled = not self.vectors.enabled
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_T):
-            self.trails.enabled = not self.trails.enabled
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_F11) or pr.is_key_pressed(pr.KeyboardKey.KEY_B):
-            pr.toggle_borderless_windowed()
-        elif pr.is_key_pressed(pr.KeyboardKey.KEY_R):
-            self.res_index = (self.res_index + 1) % len(self.resolutions)
-            w, h = self.resolutions[self.res_index]
-            pr.set_window_size(w, h)
+
+    def _stop_sim(self) -> None:
+        self.sim.stop()
+        self.trails.clear()
+
+    def _toggle_grid(self) -> None:
+        self.grid.show_grid = not self.grid.show_grid
+        self.toggle_grid.state = self.grid.show_grid
+
+    def _cycle_resolution(self) -> None:
+        self.res_index = (self.res_index + 1) % len(self.resolutions)
+        w, h = self.resolutions[self.res_index]
+        pr.set_window_size(w, h)
 
     def render_hud(self) -> None:
         self.workspace_ui.update_and_draw()
@@ -225,7 +238,7 @@ class SimulationRenderer:
 
         # Draw Inspector Graph Panel if a rigid shape is selected
         if self.selected_shape in self.sim.scene.shapes:
-            self.graph_renderer.draw(self.selected_shape, self.workspace_ui.slider_gravity.value)
+            self.graph_renderer.draw(self.selected_shape, -self.workspace_ui.slider_gravity.value)
 
         if self.mode_3d and getattr(self.axis_indicator, 'show', True):
             self.axis_indicator.draw(self.camera_ctrl.camera, pr.get_screen_width(), pr.get_screen_height())
@@ -280,11 +293,11 @@ class SimulationRenderer:
             return
 
         # Advance backend simulation integration
-        # gravity is driven by the live workspace slider, not the old panel slider
-        gravity = self.workspace_ui.slider_gravity.value
+        # gravity is driven by the live workspace slider (positive UI magnitude -> downward pull)
+        gravity = -self.workspace_ui.slider_gravity.value
         self.sim.step(dt, gravity, particle_system=self.particles, trail_renderer=self.trails)
 
-        if self.sim.state == "PLAYING" and self.selected_shape:
+        if self.sim.state == "PLAYING" and self.selected_shape in self.sim.scene.shapes:
             self.graph_renderer.add_sample(self.selected_shape, gravity)
 
         match self.sim_mode:
@@ -342,9 +355,12 @@ class SimulationRenderer:
         screen_gx = cx + int(gx * scale)
         screen_gy = cy - int(gy * scale)
 
+        if is_over_panel:
+            return
+
         if self.placement_mode:
             pr.draw_circle_lines(screen_gx, screen_gy, 15, pr.Color(0, 255, 100, 200))
-            if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT) and not is_over_panel:
+            if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
                 spawn_actions = {
                     "emitter": lambda: self.optics_scene.add_emitter(gx, gy, 0.0),
                     "mirror": lambda: self.optics_scene.add_mirror(gx, gy, 135.0, 3.0),
@@ -357,13 +373,21 @@ class SimulationRenderer:
                 if action:
                     self.selected_shape = action()
                 self.placement_mode = None
-        elif pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT) and not is_over_panel:
+            return
+
+        if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
             picker = {
                 SimulationMode.OPTICS: self.optics_scene.pick_element,
                 SimulationMode.FIELDS: self.fields_scene.pick_source
             }.get(self.sim_mode)
             if picker:
                 self.selected_shape = picker(gx, gy)
+            return
+
+        if pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT):
+            if self.selected_shape and hasattr(self.selected_shape, 'x') and hasattr(self.selected_shape, 'y'):
+                self.selected_shape.x = gx
+                self.selected_shape.y = gy
 
     def _render_mode_3d(self, dt: float, gravity: float) -> None:
         pr.begin_mode_3d(self.camera_ctrl.camera)

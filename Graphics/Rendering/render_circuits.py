@@ -9,7 +9,11 @@ class CircuitRenderer:
     def __init__(self):
         self.scale = 40.0
         self.wiring_start_node = None
-        self.active_comp_type = 'wire'
+        self.active_comp_type = 'select'
+        self.dragging_node = None
+        self.dragging_comp = None
+        self.drag_last_gx = 0.0
+        self.drag_last_gy = 0.0
 
     def handle_input(self, scene, sw: int, sh: int, pan_x: float = 0.0, pan_y: float = 0.0, is_over_ui: bool = False) -> None:
         if not scene or is_over_ui:
@@ -23,15 +27,50 @@ class CircuitRenderer:
         gy = round((cy - mouse_pos.y) / self.scale * 2.0) / 2.0
 
         if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
-            self.wiring_start_node = scene.add_node(gx, gy)
+            if self.active_comp_type == 'select':
+                picked_n = None
+                for n in scene.nodes:
+                    if math.hypot(n.x - gx, n.y - gy) < 0.6:
+                        picked_n = n
+                        break
+                if picked_n:
+                    self.dragging_node = picked_n
+                else:
+                    picked_c = scene.pick_component(gx, gy)
+                    if picked_c:
+                        self.dragging_comp = picked_c
+                        self.drag_last_gx = gx
+                        self.drag_last_gy = gy
+            else:
+                self.wiring_start_node = scene.add_node(gx, gy)
 
-        if pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT) and self.wiring_start_node:
-            end_node = scene.add_node(gx, gy)
-            if end_node != self.wiring_start_node and math.hypot(end_node.x - self.wiring_start_node.x, end_node.y - self.wiring_start_node.y) > 0.1:
-                val = 9.0 if self.active_comp_type == 'battery' else 10.0
-                scene.add_component(self.active_comp_type, self.wiring_start_node, end_node, val)
+        if pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT) and self.active_comp_type == 'select':
+            if self.dragging_node:
+                self.dragging_node.x = gx
+                self.dragging_node.y = gy
                 CircuitSolver.step(scene)
-            self.wiring_start_node = None
+            if self.dragging_comp and not self.dragging_node:
+                dx = gx - self.drag_last_gx
+                dy = gy - self.drag_last_gy
+                if dx != 0 or dy != 0:
+                    self.dragging_comp.node_a.x += dx
+                    self.dragging_comp.node_a.y += dy
+                    self.dragging_comp.node_b.x += dx
+                    self.dragging_comp.node_b.y += dy
+                    self.drag_last_gx = gx
+                    self.drag_last_gy = gy
+                    CircuitSolver.step(scene)
+
+        if pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT):
+            self.dragging_node = None
+            self.dragging_comp = None
+            if self.wiring_start_node:
+                end_node = scene.add_node(gx, gy)
+                if end_node != self.wiring_start_node and math.hypot(end_node.x - self.wiring_start_node.x, end_node.y - self.wiring_start_node.y) > 0.1:
+                    val = 9.0 if self.active_comp_type == 'battery' else 10.0
+                    scene.add_component(self.active_comp_type, self.wiring_start_node, end_node, val)
+                    CircuitSolver.step(scene)
+                self.wiring_start_node = None
 
     def draw(self, scene, sw: int, sh: int, dt: float = 0.0, pan_x: float = 0.0, pan_y: float = 0.0) -> None:
         if not scene:
@@ -67,26 +106,27 @@ class CircuitRenderer:
 
             # Draw component icon at midpoint
             mx, my = (x1 + x2) // 2, (y1 + y2) // 2
-            if comp.comp_type == 'battery':
-                pr.draw_rectangle(mx - 18, my - 12, 36, 24, pr.Color(229, 115, 115, 255))
-                pr.draw_rectangle_lines(mx - 18, my - 12, 36, 24, pr.WHITE)
-                pr.draw_text(f"{comp.val:.0f}V", mx - 10, my - 7, 14, pr.WHITE)
-            elif comp.comp_type == 'resistor':
-                pr.draw_rectangle(mx - 20, my - 10, 40, 20, pr.Color(255, 183, 77, 255))
-                pr.draw_rectangle_lines(mx - 20, my - 10, 40, 20, pr.WHITE)
-                pr.draw_text(f"{comp.val:.0f} ohm", mx - 18, my - 6, 12, pr.BLACK)
-            elif comp.comp_type == 'switch':
-                pr.draw_circle(mx, my, 8, pr.GREEN if comp.state else pr.RED)
-                state_str = "CLOSED" if comp.state else "OPEN"
-                pr.draw_text(state_str, mx - 15, my - 22, 12, pr.WHITE)
-            elif comp.comp_type == 'bulb':
-                # Glow effect based on current
-                glow = min(255, int(abs(comp.current) * 400))
-                if glow > 20:
-                    pr.draw_circle(mx, my, 28, pr.Color(255, 255, 0, min(120, glow // 2)))
-                    pr.draw_circle(mx, my, 20, pr.Color(255, 255, 100, min(200, glow)))
-                pr.draw_circle(mx, my, 14, pr.Color(255, 235, 59, 255) if glow > 50 else pr.DARKGRAY)
-                pr.draw_circle_lines(mx, my, 14, pr.WHITE)
+            match comp.comp_type:
+                case 'battery':
+                    pr.draw_rectangle(mx - 18, my - 12, 36, 24, pr.Color(229, 115, 115, 255))
+                    pr.draw_rectangle_lines(mx - 18, my - 12, 36, 24, pr.WHITE)
+                    pr.draw_text(f"{comp.val:.0f}V", mx - 10, my - 7, 14, pr.WHITE)
+                case 'resistor':
+                    pr.draw_rectangle(mx - 20, my - 10, 40, 20, pr.Color(255, 183, 77, 255))
+                    pr.draw_rectangle_lines(mx - 20, my - 10, 40, 20, pr.WHITE)
+                    pr.draw_text(f"{comp.val:.0f} ohm", mx - 18, my - 6, 12, pr.BLACK)
+                case 'switch':
+                    pr.draw_circle(mx, my, 8, pr.GREEN if comp.state else pr.RED)
+                    state_str = "CLOSED" if comp.state else "OPEN"
+                    pr.draw_text(state_str, mx - 15, my - 22, 12, pr.WHITE)
+                case 'bulb':
+                    # Glow effect based on current
+                    glow = min(255, int(abs(comp.current) * 400))
+                    if glow > 20:
+                        pr.draw_circle(mx, my, 28, pr.Color(255, 255, 0, min(120, glow // 2)))
+                        pr.draw_circle(mx, my, 20, pr.Color(255, 255, 100, min(200, glow)))
+                    pr.draw_circle(mx, my, 14, pr.Color(255, 235, 59, 255) if glow > 50 else pr.DARKGRAY)
+                    pr.draw_circle_lines(mx, my, 14, pr.WHITE)
 
         # Draw nodes with voltage labels
         for n in scene.nodes:

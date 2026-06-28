@@ -43,6 +43,7 @@ class WorkspaceUI:
         self.btn_s_clear = Button(0, 0, 220, 32, "Clear All")
         
         # Sidebar Spawning Tools - Circuits
+        self.btn_c_select = Button(0, 0, 220, 30, "Select / Move")
         self.btn_c_wire = Button(0, 0, 105, 30, "Wire")
         self.btn_c_bat = Button(0, 0, 105, 30, "Battery")
         self.btn_c_res = Button(0, 0, 105, 30, "Resistor")
@@ -307,6 +308,8 @@ class WorkspaceUI:
         pr.draw_text(f"Current: {abs(obj.current):.3f} A", ix, curr_y, 14, Colors.GRID_MAJOR)
         curr_y += 24
 
+        pr.draw_text(f"Type: {obj.comp_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
+        curr_y += 24
         match obj.comp_type:
             case 'switch':
                 state_str = "CLOSED" if obj.state else "OPEN"
@@ -325,6 +328,9 @@ class WorkspaceUI:
                 self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
                 obj.val = self.slider_prop1.update_and_draw()
                 return curr_y + 45
+            case 'wire':
+                pr.draw_text(f"Current: {obj.current:.3f} A", ix, curr_y, 14, pr.SKYBLUE)
+                return curr_y + 25
             case _:
                 return curr_y
 
@@ -384,13 +390,15 @@ class WorkspaceUI:
             self.app.selected_shape = None
 
     def _draw_sidebar_circuits(self, sb_x: int, ty: int) -> None:
-        self.btn_c_wire.rect.x, self.btn_c_wire.rect.y = sb_x + 15, ty
-        self.btn_c_bat.rect.x, self.btn_c_bat.rect.y = sb_x + 130, ty
-        self.btn_c_res.rect.x, self.btn_c_res.rect.y = sb_x + 15, ty + 38
-        self.btn_c_sw.rect.x, self.btn_c_sw.rect.y = sb_x + 130, ty + 38
-        self.btn_c_bulb.rect.x, self.btn_c_bulb.rect.y = sb_x + 15, ty + 76
-        self.btn_s_clear.rect.x, self.btn_s_clear.rect.y = sb_x + 15, ty + 114
+        self.btn_c_select.rect.x, self.btn_c_select.rect.y = sb_x + 15, ty
+        self.btn_c_wire.rect.x, self.btn_c_wire.rect.y = sb_x + 15, ty + 38
+        self.btn_c_bat.rect.x, self.btn_c_bat.rect.y = sb_x + 130, ty + 38
+        self.btn_c_res.rect.x, self.btn_c_res.rect.y = sb_x + 15, ty + 76
+        self.btn_c_sw.rect.x, self.btn_c_sw.rect.y = sb_x + 130, ty + 76
+        self.btn_c_bulb.rect.x, self.btn_c_bulb.rect.y = sb_x + 15, ty + 114
+        self.btn_s_clear.rect.x, self.btn_s_clear.rect.y = sb_x + 130, ty + 114
         
+        if self.btn_c_select.update_and_draw(): self.app.circuit_renderer.active_comp_type = 'select'
         if self.btn_c_wire.update_and_draw(): self.app.circuit_renderer.active_comp_type = 'wire'
         if self.btn_c_bat.update_and_draw(): self.app.circuit_renderer.active_comp_type = 'battery'
         if self.btn_c_res.update_and_draw(): self.app.circuit_renderer.active_comp_type = 'resistor'

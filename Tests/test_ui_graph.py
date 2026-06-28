@@ -31,5 +31,15 @@ class TestUIGraph(unittest.TestCase):
         self.graph.clear()
         self.assertEqual(len(self.graph.history_h), 0)
 
+    def test_non_kinematics_shape_sampling_safety(self):
+        # Circuit component or optical element without pos/vel/kinetic_energy
+        non_kinematics_obj = type("Switch", (), {"state": True, "comp_type": "switch"})()
+        try:
+            self.graph.add_sample(non_kinematics_obj, -9.81)
+            self.graph.draw(non_kinematics_obj, -9.81)
+        except AttributeError:
+            self.fail("GraphRenderer crashed when sampling/drawing non-kinematics object!")
+        self.assertEqual(len(self.graph.history_h), 0)
+
 if __name__ == "__main__":
     unittest.main()

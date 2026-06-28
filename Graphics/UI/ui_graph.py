@@ -30,7 +30,7 @@ class GraphRenderer:
         self.history_tot.clear()
 
     def add_sample(self, shape, gravity: float) -> None:
-        if not shape:
+        if not shape or not hasattr(shape, 'pos') or not hasattr(shape, 'vel') or not hasattr(shape, 'kinetic_energy'):
             return
         h_val = shape.pos.y if not math.isnan(shape.pos.y) and not math.isinf(shape.pos.y) else 0.0
         v_val = shape.vel.y if not math.isnan(shape.vel.y) and not math.isinf(shape.vel.y) else 0.0
@@ -63,7 +63,7 @@ class GraphRenderer:
             pr.draw_line_ex(pr.Vector2(x1, y1), pr.Vector2(x2, y2), 2.0, color)
 
     def draw(self, shape, gravity: float) -> None:
-        if not shape:
+        if not shape or not hasattr(shape, 'pos') or not hasattr(shape, 'vel') or not hasattr(shape, 'kinetic_energy'):
             return
 
         sw = pr.get_screen_width()

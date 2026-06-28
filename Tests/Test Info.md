@@ -30,7 +30,7 @@ python -m unittest discover -s "Tests" -p "test_*.py"
 | [`test_sim_shapes.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_sim_shapes.py) | Physics Data Structures | 4 | `PhysicsShape`, Energy calculations |
 | [`test_stability.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_stability.py) | Stress Testing & Crash Prevention | 3 | Overlapping collisions, NaN/Inf guards |
 | [`test_ui_elements.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_ui_elements.py) | Interactive UI Widgets | 3 | `Slider`, `Toggle`, `NodeSelector` |
-| [`test_ui_graph.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_ui_graph.py) | Real-time Telemetry Plotter | 2 | `GraphRenderer`, Ring buffer clamping |
+| [`test_ui_graph.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_ui_graph.py) | Real-time Telemetry Plotter | 3 | `GraphRenderer`, Ring buffer clamping |
 | [`test_ui_load_scenario.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_ui_load_scenario.py) | Scenario I/O & File Tree | 4 | `ScenarioManager`, `LoadScenarioScreen` |
 | [`test_ui_workspace.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_ui_workspace.py) | Inspector Panel & Picking | 6 | `WorkspaceUI`, Mode dispatch, Sliders |
 
@@ -87,6 +87,7 @@ Tests standalone user interface input components.
 Tests real-time energy and altitude chart renderers.
 * `test_add_sample_and_ring_buffer_clamping`: Feeds 350 continuous samples into a 300-point ring buffer, confirming automatic discarding of oldest frames without memory bloat.
 * `test_clear_buffers`: Verifies complete chart erasure when clearing workspace data.
+* `test_non_kinematics_shape_sampling_safety`: **(Bug Fix)** Verifies that sampling or drawing graph telemetry when a non-kinematics object (such as a circuit switch or lens) is selected gracefully aborts without throwing an `AttributeError`.
 
 ### 10. Scenario Management & I/O ([`test_ui_load_scenario.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/test_ui_load_scenario.py))
 Tests local filesystem operations for saving, loading, and organizing project files.
