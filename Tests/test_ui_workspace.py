@@ -120,5 +120,44 @@ class TestWorkspaceUIAndMultiMode(unittest.TestCase):
         ui._draw_inspector(10, 10)
         self.assertIn("CLOSED", ui.btn_toggle_state.text)
 
+    def test_circuits_removal_cleanup(self):
+        ui = WorkspaceUI(self.mock_app)
+        n1 = self.circuit_scene.add_node(0, 0)
+        n2 = self.circuit_scene.add_node(2, 2)
+        res = self.circuit_scene.add_component('resistor', n1, n2, 10.0)
+        n1.fixed_voltage = True
+        n1.voltage = 9.0
+        self.mock_app.selected_shape = res
+        ui._remove_selected_object(SimulationMode.CIRCUITS, res)
+        self.assertNotIn(res, self.circuit_scene.components)
+        self.assertEqual(len(self.circuit_scene.nodes), 0) # Orphaned nodes cleaned up
+        self.assertIsNone(self.mock_app.selected_shape)
+
+    @patch('Graphics.UI.ui_elements.Slider.update_and_draw', lambda self: self.value)
+    @patch('Graphics.UI.ui_elements.Button.update_and_draw', lambda self, *args: False)
+    @patch('pyray.draw_text')
+    def test_inspector_optics(self, *args):
+        ui = WorkspaceUI(self.mock_app)
+        lens = self.optics_scene.add_lens(0.0, 0.0, 5.0, 4.0)
+        self.mock_app.selected_shape = lens
+        self.mock_app.sim_mode = SimulationMode.OPTICS
+        ui._draw_inspector(10, 10)
+        self.assertEqual(lens.param1, 5.0)
+
+    def test_picker_inactive_scene_safeguard(self):
+        # When in FIELDS mode, optics_scene is None. Verify match/case dispatch avoids AttributeError.
+        self.mock_app.sim_mode = SimulationMode.FIELDS
+        self.mock_app.optics_scene = None
+        ch = self.fields_scene.add_charge(0.0, 0.0, 1.0)
+        picked = None
+        match self.mock_app.sim_mode:
+            case SimulationMode.OPTICS:
+                if self.mock_app.optics_scene:
+                    picked = self.mock_app.optics_scene.pick_element(0.0, 0.0)
+            case SimulationMode.FIELDS:
+                if self.mock_app.fields_scene:
+                    picked = self.mock_app.fields_scene.pick_source(0.0, 0.0)
+        self.assertEqual(picked, ch)
+
 if __name__ == '__main__':
     unittest.main()

@@ -376,12 +376,13 @@ class SimulationRenderer:
             return
 
         if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
-            picker = {
-                SimulationMode.OPTICS: self.optics_scene.pick_element,
-                SimulationMode.FIELDS: self.fields_scene.pick_source
-            }.get(self.sim_mode)
-            if picker:
-                self.selected_shape = picker(gx, gy)
+            match self.sim_mode:
+                case SimulationMode.OPTICS:
+                    if self.optics_scene:
+                        self.selected_shape = self.optics_scene.pick_element(gx, gy)
+                case SimulationMode.FIELDS:
+                    if self.fields_scene:
+                        self.selected_shape = self.fields_scene.pick_source(gx, gy)
             return
 
         if pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT):

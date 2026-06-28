@@ -263,17 +263,34 @@ class WorkspaceUI:
             self._remove_selected_object(mode, obj)
 
     def _remove_selected_object(self, mode: SimulationMode, obj) -> None:
-        collections_map = {
-            SimulationMode.KINEMATICS_3D: [self.app.sim.scene.shapes],
-            SimulationMode.KINETIC_2D: [self.app.sim.scene.shapes],
-            SimulationMode.CIRCUITS: [self.app.circuit_scene.components],
-            SimulationMode.OPTICS: [self.app.optics_scene.elements, self.app.optics_scene.emitters],
-            SimulationMode.FIELDS: [self.app.fields_scene.sources]
-        }
-        for coll in collections_map.get(mode, []):
-            if obj in coll:
-                coll.remove(obj)
-                break
+        match mode:
+            case SimulationMode.KINEMATICS_3D | SimulationMode.KINETIC_2D:
+                if obj in self.app.sim.scene.shapes:
+                    self.app.sim.scene.shapes.remove(obj)
+            case SimulationMode.CIRCUITS:
+                if obj in self.app.circuit_scene.components:
+                    self.app.circuit_scene.components.remove(obj)
+                if obj in self.app.circuit_scene.nodes:
+                    self.app.circuit_scene.nodes.remove(obj)
+                    self.app.circuit_scene.components = [c for c in self.app.circuit_scene.components if c.node_a != obj and c.node_b != obj]
+                # Clean up orphaned nodes and reset voltages to avoid stale solver states
+                active_nodes = {c.node_a for c in self.app.circuit_scene.components} | {c.node_b for c in self.app.circuit_scene.components}
+                self.app.circuit_scene.nodes = [n for n in self.app.circuit_scene.nodes if n in active_nodes]
+                for n in self.app.circuit_scene.nodes:
+                    n.fixed_voltage = False
+                    n.voltage = 0.0
+                if hasattr(self.app, 'circuit_renderer') and self.app.circuit_renderer:
+                    self.app.circuit_renderer.dragging_comp = None
+                    self.app.circuit_renderer.dragging_node = None
+                    self.app.circuit_renderer.wiring_start_node = None
+            case SimulationMode.OPTICS:
+                if obj in self.app.optics_scene.elements:
+                    self.app.optics_scene.elements.remove(obj)
+                if obj in self.app.optics_scene.emitters:
+                    self.app.optics_scene.emitters.remove(obj)
+            case SimulationMode.FIELDS:
+                if obj in self.app.fields_scene.sources:
+                    self.app.fields_scene.sources.remove(obj)
         self.app.selected_shape = None
 
     def _inspect_kinematics(self, obj, ix: int, curr_y: int) -> int:
@@ -286,7 +303,7 @@ class WorkspaceUI:
 
         if self.slider_prop1.label != "Mass (kg)":
             self.slider_prop1 = Slider(ix, curr_y, 220, 14, "Mass (kg)", 0.1, 50.0, obj.mass)
-        elif not self.slider_prop1.dragging:
+        if not self.slider_prop1.dragging:
             self.slider_prop1.value = obj.mass
         self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
         obj.mass = self.slider_prop1.update_and_draw()
@@ -294,7 +311,7 @@ class WorkspaceUI:
 
         if self.slider_prop2.label != "Bounciness":
             self.slider_prop2 = Slider(ix, curr_y, 220, 14, "Bounciness", 0.0, 1.0, obj.restitution)
-        elif not self.slider_prop2.dragging:
+        if not self.slider_prop2.dragging:
             self.slider_prop2.value = obj.restitution
         self.slider_prop2.rect.x, self.slider_prop2.rect.y = ix, curr_y
         obj.restitution = self.slider_prop2.update_and_draw()
@@ -323,7 +340,7 @@ class WorkspaceUI:
                 max_v = 100.0 if obj.comp_type == 'battery' else 500.0
                 if self.slider_prop1.label != lbl:
                     self.slider_prop1 = Slider(ix, curr_y, 220, 14, lbl, 0.1, max_v, obj.val)
-                elif not self.slider_prop1.dragging:
+                if not self.slider_prop1.dragging:
                     self.slider_prop1.value = obj.val
                 self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
                 obj.val = self.slider_prop1.update_and_draw()
@@ -340,19 +357,19 @@ class WorkspaceUI:
             curr_y += 24
             if self.slider_prop1.label != "Angle (°)":
                 self.slider_prop1 = Slider(ix, curr_y, 220, 14, "Angle (°)", -180.0, 180.0, obj.angle_deg)
-            elif not self.slider_prop1.dragging:
+            if not self.slider_prop1.dragging:
                 self.slider_prop1.value = obj.angle_deg
             self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
             obj.angle_deg = self.slider_prop1.update_and_draw()
             return curr_y + 45
-        elif getattr(obj, 'elem_type', None) is not None:
+        if getattr(obj, 'elem_type', None) is not None:
             pr.draw_text(f"Type: {obj.elem_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
             curr_y += 24
             lbl = "Angle (°)" if obj.elem_type in ('mirror', 'prism') else "Focal Len"
             min_v, max_v = (-180.0, 180.0) if 'Angle' in lbl else (-10.0, 10.0)
             if self.slider_prop1.label != lbl:
                 self.slider_prop1 = Slider(ix, curr_y, 220, 14, lbl, min_v, max_v, obj.param1)
-            elif not self.slider_prop1.dragging:
+            if not self.slider_prop1.dragging:
                 self.slider_prop1.value = obj.param1
             self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
             obj.param1 = self.slider_prop1.update_and_draw()
@@ -367,7 +384,7 @@ class WorkspaceUI:
         lbl = "Strength"
         if self.slider_prop1.label != lbl:
             self.slider_prop1 = Slider(ix, curr_y, 220, 14, lbl, -20.0, 20.0, obj.val)
-        elif not self.slider_prop1.dragging:
+        if not self.slider_prop1.dragging:
             self.slider_prop1.value = obj.val
         self.slider_prop1.rect.x, self.slider_prop1.rect.y = ix, curr_y
         obj.val = self.slider_prop1.update_and_draw()

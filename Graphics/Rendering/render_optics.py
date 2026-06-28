@@ -19,20 +19,21 @@ class OpticsRenderer:
 
         # Draw optical elements
         for el in scene.elements:
-            if el.elem_type == 'mirror':
-                m_rad = math.radians(el.param1)
-                half_l = el.param2 / 2.0
-                mx = math.cos(m_rad) * half_l
-                my = math.sin(m_rad) * half_l
-                x1, y1 = cx + int((el.x - mx) * self.scale), cy - int((el.y - my) * self.scale)
-                x2, y2 = cx + int((el.x + mx) * self.scale), cy - int((el.y + my) * self.scale)
-                pr.draw_line_ex(pr.Vector2(x1, y1), pr.Vector2(x2, y2), 5.0, pr.Color(200, 230, 255, 255))
-            elif el.elem_type == 'lens':
-                half_h = el.param2 / 2.0
-                x1, y1 = cx + int(el.x * self.scale), cy - int((el.y - half_h) * self.scale)
-                x2, y2 = cx + int(el.x * self.scale), cy - int((el.y + half_h) * self.scale)
-                pr.draw_line_ex(pr.Vector2(x1, y1), pr.Vector2(x2, y2), 8.0, pr.Color(100, 181, 246, 180))
-                pr.draw_circle(x1, (y1 + y2) // 2, 6, pr.Color(100, 181, 246, 255))
+            match el.elem_type:
+                case 'mirror':
+                    m_rad = math.radians(el.param1)
+                    half_l = el.param2 / 2.0
+                    mx = math.cos(m_rad) * half_l
+                    my = math.sin(m_rad) * half_l
+                    x1, y1 = cx + int((el.x - mx) * self.scale), cy - int((el.y - my) * self.scale)
+                    x2, y2 = cx + int((el.x + mx) * self.scale), cy - int((el.y + my) * self.scale)
+                    pr.draw_line_ex(pr.Vector2(x1, y1), pr.Vector2(x2, y2), 5.0, pr.Color(200, 230, 255, 255))
+                case 'lens':
+                    half_h = el.param2 / 2.0
+                    x1, y1 = cx + int(el.x * self.scale), cy - int((el.y - half_h) * self.scale)
+                    x2, y2 = cx + int(el.x * self.scale), cy - int((el.y + half_h) * self.scale)
+                    pr.draw_line_ex(pr.Vector2(x1, y1), pr.Vector2(x2, y2), 8.0, pr.Color(100, 181, 246, 180))
+                    pr.draw_circle(x1, (y1 + y2) // 2, 6, pr.Color(100, 181, 246, 255))
 
         # Draw laser emitters
         for em in scene.emitters:

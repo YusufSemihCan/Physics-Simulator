@@ -80,9 +80,12 @@ class Slider:
         pr.draw_rectangle_rounded(self.rect, 0.5, 8, Colors.GRID_MINOR)
         
         # Draw filled progress bar
-        fill_width = int(((self.value - self.min_val) / (self.max_val - self.min_val)) * self.rect.width)
-        fill_rect = pr.Rectangle(self.rect.x, self.rect.y, fill_width, self.rect.height)
-        pr.draw_rectangle_rounded(fill_rect, 0.5, 8, Colors.UI_ACTIVE)
+        val_range = max(1e-6, self.max_val - self.min_val)
+        fill_ratio = max(0.0, min(1.0, (self.value - self.min_val) / val_range))
+        fill_width = int(fill_ratio * self.rect.width)
+        if fill_width > 2:
+            fill_rect = pr.Rectangle(self.rect.x, self.rect.y, fill_width, self.rect.height)
+            pr.draw_rectangle_rounded(fill_rect, 0.5, 8, Colors.UI_ACTIVE)
 
         # Draw thumb handle
         thumb_x = int(self.rect.x + fill_width)
