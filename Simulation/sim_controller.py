@@ -5,14 +5,13 @@ import uuid
 from collections import deque
 from typing import Dict, List, Any, Optional
 from Simulation.sim_shapes import PhysicsShape
-from Graphics.Rendering.render_colors import Colors
 from Physics import step_physics
 
 # Colour palette shared by all spawned shapes — built once at import time
 _SHAPE_PALETTE = [
-    Colors.SHAPE_ACCENT,
-    Colors.VECTOR_VELOCITY,
-    Colors.VECTOR_ACCEL,
+    pr.Color(229, 192, 123, 255),
+    pr.Color(86, 182, 194, 255),
+    pr.Color(198, 120, 221, 255),
     pr.Color(229, 115, 115, 255),
     pr.Color(129, 199, 132, 255),
     pr.Color(100, 181, 246, 255),

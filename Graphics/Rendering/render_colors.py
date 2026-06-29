@@ -24,3 +24,10 @@ class Colors:
     TRAIL_DEFAULT = pr.Color(229, 192, 123, 180)    # Gold with transparency
     PARTICLE_SPARK = pr.Color(255, 215, 0, 255)     # Bright yellow
 
+    # Graph & Energy Display Colors
+    GRAPH_BG = pr.Color(15, 18, 22, 255)
+    GRAPH_GRID = pr.Color(40, 45, 55, 255)
+    ENERGY_KE = pr.Color(255, 183, 77, 255)         # Orange
+    ENERGY_PE = pr.Color(129, 199, 132, 255)        # Green
+    ENERGY_TOT = pr.Color(255, 255, 255, 255)       # White
+

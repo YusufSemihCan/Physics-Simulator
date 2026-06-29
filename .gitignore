@@ -150,3 +150,5 @@ cython_debug/
 docs/Personal/
 docs/personal/
 .agents/
+.agent/
+.agent

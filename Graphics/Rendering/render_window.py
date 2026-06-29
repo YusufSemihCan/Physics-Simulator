@@ -94,6 +94,43 @@ class SimulationRenderer:
             pr.KeyboardKey.KEY_R: self._cycle_resolution,
         }
 
+        # 2D pan keyboard direction accumulation map (key → (dx, dy))
+        self._pan_keys = {
+            pr.KeyboardKey.KEY_W:    (0.0,  1.0),
+            pr.KeyboardKey.KEY_UP:   (0.0,  1.0),
+            pr.KeyboardKey.KEY_S:    (0.0, -1.0),
+            pr.KeyboardKey.KEY_DOWN: (0.0, -1.0),
+            pr.KeyboardKey.KEY_A:    (1.0,  0.0),
+            pr.KeyboardKey.KEY_D:   (-1.0,  0.0),
+        }
+
+        # 3D shape draw strategy: shape_type → (solid_fn, wire_fn)
+        self._shape_draw_3d = {
+            "sphere": (
+                lambda s: pr.draw_sphere(s.pos, s.radius, s.color),
+                lambda s: pr.draw_sphere_wires(s.pos, s.radius, 16, 16, Colors.AXIS_X),
+            ),
+            "cube": (
+                lambda s: pr.draw_cube(s.pos, s.size.x, s.size.y, s.size.z, s.color),
+                lambda s: pr.draw_cube_wires(s.pos, s.size.x, s.size.y, s.size.z, Colors.AXIS_X),
+            ),
+        }
+
+        # 3D ray-pick collision strategy: shape_type → fn(ray, shape) → RayCollision
+        self._ray_pick_3d = {
+            "sphere": lambda ray, s: pr.get_ray_collision_sphere(ray, s.pos, s.radius),
+            "cube":   lambda ray, s: pr.get_ray_collision_box(
+                ray,
+                pr.BoundingBox(
+                    pr.Vector3(s.pos.x - s.size.x/2, s.pos.y - s.size.y/2, s.pos.z - s.size.z/2),
+                    pr.Vector3(s.pos.x + s.size.x/2, s.pos.y + s.size.y/2, s.pos.z + s.size.z/2)
+                )
+            ),
+        }
+
+        # Screen-render dispatch map (built after screen objects exist)
+        self._screen_render_map = None
+
     def switch_mode(self, mode: SimulationMode) -> None:
         self.sim_mode = mode
         self.mode_3d = (mode == SimulationMode.KINEMATICS_3D)
@@ -134,6 +171,14 @@ class SimulationRenderer:
         if hasattr(self, 'load_scenario_screen'):
             self.load_scenario_screen.refresh_for_mode()
 
+    def _build_screen_render_map(self) -> None:
+        """Build the screen→handler dispatch map once all screen objects are ready."""
+        self._screen_render_map = {
+            AppScreen.MAIN_MENU:     self._handle_screen_main_menu,
+            AppScreen.SETTINGS:      self._handle_screen_settings,
+            AppScreen.LOAD_SCENARIO: self._handle_screen_load_scenario,
+        }
+
     def handle_input(self) -> None:
         match self.current_screen:
             case AppScreen.MAIN_MENU:
@@ -155,7 +200,6 @@ class SimulationRenderer:
                     return
 
         mouse_pos = pr.get_mouse_position()
-        sw = pr.get_screen_width()
         is_over_panel = self.workspace_ui.is_over_ui(mouse_pos)
 
         # Interactive placement adjustments
@@ -167,17 +211,12 @@ class SimulationRenderer:
             if wheel != 0:
                 self.spawn_height = max(0.5, min(14.0, self.spawn_height + wheel * 0.5))
         elif self.mode_3d:
-            # Check object picking selection on Left Click
+            # Check object picking selection on Left Click via dispatch table
             if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT) and not is_over_panel:
-                ray = pr.get_mouse_ray(mouse_pos, self.camera_ctrl.camera)
+                ray = pr.get_screen_to_world_ray(mouse_pos, self.camera_ctrl.camera)
                 hit_any = False
                 for s in self.sim.scene.shapes:
-                    if s.shape_type == "sphere":
-                        col = pr.get_ray_collision_sphere(ray, s.pos, s.radius)
-                    else:
-                        hw, hh, hd = s.size.x / 2, s.size.y / 2, s.size.z / 2
-                        box = pr.BoundingBox(pr.Vector3(s.pos.x - hw, s.pos.y - hh, s.pos.z - hd), pr.Vector3(s.pos.x + hw, s.pos.y + hh, s.pos.z + hd))
-                        col = pr.get_ray_collision_box(ray, box)
+                    col = self._ray_pick_3d.get(s.shape_type, self._ray_pick_3d["sphere"])(ray, s)
                     if col.hit:
                         self.selected_shape = s
                         self.graph_renderer.clear()
@@ -192,15 +231,12 @@ class SimulationRenderer:
                 delta = pr.get_mouse_delta()
                 self.pan_x += delta.x
                 self.pan_y += delta.y
+            # Accumulate pan direction from all held keys in a single pass
             pan_speed = 5.0
-            if pr.is_key_down(pr.KeyboardKey.KEY_W) or pr.is_key_down(pr.KeyboardKey.KEY_UP):
-                self.pan_y += pan_speed
-            if pr.is_key_down(pr.KeyboardKey.KEY_S) or pr.is_key_down(pr.KeyboardKey.KEY_DOWN):
-                self.pan_y -= pan_speed
-            if pr.is_key_down(pr.KeyboardKey.KEY_A):
-                self.pan_x += pan_speed
-            if pr.is_key_down(pr.KeyboardKey.KEY_D):
-                self.pan_x -= pan_speed
+            for key, (dx, dy) in self._pan_keys.items():
+                if pr.is_key_down(key):
+                    self.pan_x += dx * pan_speed
+                    self.pan_y += dy * pan_speed
 
         # Keyboard shortcuts via dictionary dispatch
         for key, action in self._key_actions.items():
@@ -217,7 +253,6 @@ class SimulationRenderer:
 
     def _toggle_grid(self) -> None:
         self.grid.show_grid = not self.grid.show_grid
-        self.toggle_grid.state = self.grid.show_grid
 
     def _cycle_resolution(self) -> None:
         self.res_index = (self.res_index + 1) % len(self.resolutions)
@@ -243,52 +278,61 @@ class SimulationRenderer:
         if self.mode_3d and getattr(self.axis_indicator, 'show', True):
             self.axis_indicator.draw(self.camera_ctrl.camera, pr.get_screen_width(), pr.get_screen_height())
 
+    def _handle_screen_main_menu(self, dt: float) -> bool:
+        """Render main menu. Returns True if we should skip simulation rendering."""
+        next_screen = self.main_menu.update_and_draw(self)
+        if next_screen == self.current_screen:
+            return True
+        if next_screen == AppScreen.QUIT:
+            self.should_quit = True
+        elif next_screen == AppScreen.SIMULATION:
+            if not self.sim.scene.shapes:
+                loaded = self.scenarios.load_scenario(self.active_scenario_name)
+                if loaded:
+                    self.sim.load_scene(loaded)
+                    self.trails.clear()
+            self.current_screen = next_screen
+        elif next_screen == AppScreen.LOAD_SCENARIO:
+            self.load_scenario_screen.refresh_list()
+            self.current_screen = next_screen
+        else:
+            self.current_screen = next_screen
+        return True
+
+    def _handle_screen_settings(self, dt: float) -> bool:
+        """Render settings screen. Returns True to skip simulation rendering."""
+        next_screen = self.settings_screen.update_and_draw()
+        if next_screen != AppScreen.SETTINGS:
+            self.current_screen = next_screen
+        return True
+
+    def _handle_screen_load_scenario(self, dt: float) -> bool:
+        """Render load scenario screen. Returns True to skip simulation rendering."""
+        next_screen = self.load_scenario_screen.update_and_draw()
+        if next_screen != AppScreen.LOAD_SCENARIO:
+            if next_screen == AppScreen.SIMULATION:
+                selected_name = self.load_scenario_screen.get_selected_scenario()
+                self.active_scenario_name = selected_name
+                loaded = self.scenarios.load_scenario(selected_name)
+                if loaded:
+                    self.sim.load_scene(loaded)
+                    self.trails.clear()
+            self.current_screen = next_screen
+        return True
+
     def render_frame(self) -> None:
+        # Lazily build the screen dispatch map on first frame (all screen objects guaranteed ready)
+        if self._screen_render_map is None:
+            self._build_screen_render_map()
+
         dt = pr.get_frame_time()
 
         pr.begin_drawing()
         pr.clear_background(Colors.BACKGROUND)
 
-        if self.current_screen == AppScreen.MAIN_MENU:
-            next_screen = self.main_menu.update_and_draw(self)
-            if next_screen != AppScreen.MAIN_MENU:
-                if next_screen == AppScreen.QUIT:
-                    self.should_quit = True
-                elif next_screen == AppScreen.SIMULATION:
-                    if not self.sim.scene.shapes:
-                        loaded = self.scenarios.load_scenario(self.active_scenario_name)
-                        if loaded:
-                            self.sim.load_scene(loaded)
-                            self.trails.clear()
-                    self.current_screen = next_screen
-                elif next_screen == AppScreen.LOAD_SCENARIO:
-                    self.load_scenario_screen.refresh_list()
-                    self.current_screen = next_screen
-                else:
-                    self.current_screen = next_screen
-            pr.end_drawing()
-            return
-
-        if self.current_screen == AppScreen.SETTINGS:
-            next_screen = self.settings_screen.update_and_draw()
-            if next_screen != AppScreen.SETTINGS:
-                self.current_screen = next_screen
-            pr.end_drawing()
-            return
-
-        if self.current_screen == AppScreen.LOAD_SCENARIO:
-            next_screen = self.load_scenario_screen.update_and_draw()
-            if next_screen != AppScreen.LOAD_SCENARIO:
-                if next_screen == AppScreen.SIMULATION:
-                    selected_name = self.load_scenario_screen.get_selected_scenario()
-                    self.active_scenario_name = selected_name
-                    loaded = self.scenarios.load_scenario(selected_name)
-                    if loaded:
-                        self.sim.load_scene(loaded)
-                        self.trails.clear()
-                    self.current_screen = next_screen
-                else:
-                    self.current_screen = next_screen
+        # Dispatch to the appropriate screen handler; returns True if we should stop here
+        screen_handler = self._screen_render_map.get(self.current_screen)
+        if screen_handler and screen_handler(dt):
             pr.end_drawing()
             return
 
@@ -399,19 +443,16 @@ class SimulationRenderer:
             pr.draw_circle_3d(pr.Vector3(self.selected_shape.pos.x, 0.05, self.selected_shape.pos.z), self.selected_shape.radius * 1.4, pr.Vector3(1, 0, 0), 90.0, Colors.UI_ACTIVE)
 
         for s in self.sim.scene.shapes:
-            if s.shape_type == "sphere":
-                pr.draw_sphere(s.pos, s.radius, s.color)
-                pr.draw_sphere_wires(s.pos, s.radius, 16, 16, Colors.AXIS_X)
-            elif s.shape_type == "cube":
-                pr.draw_cube(s.pos, s.size.x, s.size.y, s.size.z, s.color)
-                pr.draw_cube_wires(s.pos, s.size.x, s.size.y, s.size.z, Colors.AXIS_X)
-
+            draw_fns = self._shape_draw_3d.get(s.shape_type)
+            if draw_fns:
+                draw_fns[0](s)
+                draw_fns[1](s)
             self.vectors.draw_vector_3d(s.pos, pr.Vector3(s.vel.x * 0.3, s.vel.y * 0.3, s.vel.z * 0.3), Colors.VECTOR_VELOCITY)
             self.vectors.draw_vector_3d(s.pos, pr.Vector3(0.0, gravity * 0.15, 0.0), Colors.VECTOR_ACCEL)
 
         if self.placement_mode:
             mouse_pos = pr.get_mouse_position()
-            ray = pr.get_mouse_ray(mouse_pos, self.camera_ctrl.camera)
+            ray = pr.get_screen_to_world_ray(mouse_pos, self.camera_ctrl.camera)
             if abs(ray.direction.y) > 0.0001:
                 t = (self.spawn_height - ray.position.y) / ray.direction.y
                 if t > 0:
@@ -458,11 +499,8 @@ class SimulationRenderer:
         if 0 <= center_x <= sw:
             pr.draw_line(center_x, 0, center_x, sh, pr.Color(100, 100, 110, 150))
 
-        for s in self.sim.scene.shapes:
-            proj_x = center_x + int(s.pos.x * scale)
-            proj_y = center_y - int(s.pos.y * scale)
-            is_sel = (s == self.selected_shape)
-
+        # 2D shape draw dispatch: avoid per-shape if/elif inside a tight loop
+        def _draw_shape_2d(s, proj_x: int, proj_y: int, is_sel: bool) -> None:
             if s.shape_type == "sphere":
                 rad = max(4, int(s.radius * scale))
                 if is_sel:
@@ -477,6 +515,18 @@ class SimulationRenderer:
                     pr.draw_rectangle_rounded(pr.Rectangle(rect.x - 3, rect.y - 3, rect.width + 6, rect.height + 6), 0.1, 4, Colors.UI_ACTIVE)
                 pr.draw_rectangle_rounded(rect, 0.1, 4, s.color)
                 pr.draw_rectangle_rounded_lines(rect, 0.1, 4, pr.WHITE)
+
+        # 2D shape hit-test dispatch: returns True if mouse hits the shape
+        def _hit_test_2d(s, px: int, py: int) -> bool:
+            if s.shape_type == "sphere":
+                return math.hypot(mouse_pos.x - px, mouse_pos.y - py) <= int(s.radius * scale)
+            w, h = int(s.size.x * scale), int(s.size.y * scale)
+            return abs(mouse_pos.x - px) <= w // 2 and abs(mouse_pos.y - py) <= h // 2
+
+        for s in self.sim.scene.shapes:
+            proj_x = center_x + int(s.pos.x * scale)
+            proj_y = center_y - int(s.pos.y * scale)
+            _draw_shape_2d(s, proj_x, proj_y, s == self.selected_shape)
 
             vx_end = proj_x + int(s.vel.x * 8)
             vy_end = proj_y - int(s.vel.y * 8)
@@ -507,20 +557,12 @@ class SimulationRenderer:
                 self.graph_renderer.clear()
                 self.placement_mode = None
         elif pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT) and not is_over_panel:
-            clicked_shape = None
-            for s in reversed(self.sim.scene.shapes):
-                px = center_x + int(s.pos.x * scale)
-                py = center_y - int(s.pos.y * scale)
-                if s.shape_type == "sphere":
-                    if math.hypot(mouse_pos.x - px, mouse_pos.y - py) <= int(s.radius * scale):
-                        clicked_shape = s
-                        break
-                else:
-                    w = int(s.size.x * scale)
-                    h = int(s.size.y * scale)
-                    if abs(mouse_pos.x - px) <= w // 2 and abs(mouse_pos.y - py) <= h // 2:
-                        clicked_shape = s
-                        break
+            # Single-pass pick: iterate reversed for top-draw-order priority
+            clicked_shape = next(
+                (s for s in reversed(self.sim.scene.shapes)
+                 if _hit_test_2d(s, center_x + int(s.pos.x * scale), center_y - int(s.pos.y * scale))),
+                None
+            )
             self.selected_shape = clicked_shape
 
     def cleanup(self) -> None:

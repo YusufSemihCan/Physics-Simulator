@@ -4,6 +4,10 @@ from typing import Callable, Optional
 import pyray as pr
 from Graphics.Rendering.render_colors import Colors
 
+class UIState:
+    """Global UI interaction locking state to prevent click-throughs during modals or dropdowns."""
+    block_interactions: bool = False
+
 class Panel:
     """A glassmorphism-inspired semi-transparent container panel for UI elements."""
     def __init__(self, x: int, y: int, width: int, height: int, title: str = ""):
@@ -26,8 +30,9 @@ class Button:
         self.text = text
 
     def update_and_draw(self, enabled: bool = True) -> bool:
+        effective_enabled = enabled and not UIState.block_interactions
         mouse_pos = pr.get_mouse_position()
-        is_hovered = enabled and pr.check_collision_point_rec(mouse_pos, self.rect)
+        is_hovered = effective_enabled and pr.check_collision_point_rec(mouse_pos, self.rect)
         clicked = is_hovered and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
 
         # Dynamic visual hover styling
@@ -56,13 +61,14 @@ class Slider:
         self.value = initial_val
         self.dragging = False
 
-    def update_and_draw(self) -> float:
+    def update_and_draw(self, enabled: bool = True) -> float:
+        effective_enabled = enabled and not UIState.block_interactions
         mouse_pos = pr.get_mouse_position()
-        is_hovered = pr.check_collision_point_rec(mouse_pos, self.rect)
+        is_hovered = effective_enabled and pr.check_collision_point_rec(mouse_pos, self.rect)
 
         if is_hovered and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
             self.dragging = True
-        if pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT):
+        if not effective_enabled or pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT):
             self.dragging = False
 
         if self.dragging:
@@ -102,9 +108,10 @@ class Toggle:
         self.label = label
         self.state = initial_state
 
-    def update_and_draw(self) -> bool:
+    def update_and_draw(self, enabled: bool = True) -> bool:
+        effective_enabled = enabled and not UIState.block_interactions
         mouse_pos = pr.get_mouse_position()
-        is_hovered = pr.check_collision_point_rec(mouse_pos, self.rect)
+        is_hovered = effective_enabled and pr.check_collision_point_rec(mouse_pos, self.rect)
 
         if is_hovered and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
             self.state = not self.state
@@ -135,10 +142,11 @@ class NodeSelector:
         self.options = options
         self.current_index = current_index
 
-    def update_and_draw(self) -> tuple[bool, int]:
+    def update_and_draw(self, enabled: bool = True) -> tuple[bool, int]:
+        effective_enabled = enabled and not UIState.block_interactions
         changed = False
         mouse_pos = pr.get_mouse_position()
-        left_click = pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
+        left_click = effective_enabled and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
 
         # Draw Setting Label on top left
         pr.draw_text(self.label, self.x, self.y, 16, Colors.UI_ACTIVE)
@@ -147,7 +155,7 @@ class NodeSelector:
         arrow_w, arrow_h = 36, 28
         ay = self.y + 24
         rect_left = pr.Rectangle(self.x, ay, arrow_w, arrow_h)
-        hov_left = pr.check_collision_point_rec(mouse_pos, rect_left)
+        hov_left = effective_enabled and pr.check_collision_point_rec(mouse_pos, rect_left)
         if hov_left and left_click:
             self.current_index = (self.current_index - 1) % len(self.options)
             changed = True
@@ -160,7 +168,7 @@ class NodeSelector:
         # Right Arrow `>`
         rx = self.x + self.width - arrow_w
         rect_right = pr.Rectangle(rx, ay, arrow_w, arrow_h)
-        hov_right = pr.check_collision_point_rec(mouse_pos, rect_right)
+        hov_right = effective_enabled and pr.check_collision_point_rec(mouse_pos, rect_right)
         if hov_right and left_click:
             self.current_index = (self.current_index + 1) % len(self.options)
             changed = True
@@ -183,7 +191,7 @@ class NodeSelector:
 
             # Check collision with circle area
             dist_sq = (mouse_pos.x - cx)**2 + (mouse_pos.y - cy)**2
-            hov_node = dist_sq <= (node_radius + 6)**2
+            hov_node = effective_enabled and dist_sq <= (node_radius + 6)**2
             if hov_node:
                 hovered_node_idx = i
                 node_radius = 11.0
@@ -229,12 +237,13 @@ class FileTreeSelector:
         self.drag_move_request = None
 
     def update_and_draw(self, enabled: bool = True) -> tuple[bool, int]:
+        effective_enabled = enabled and not UIState.block_interactions
         changed = False
         self.drag_move_request = None
         mouse_pos = pr.get_mouse_position()
-        left_click = enabled and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
-        left_down = enabled and pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT)
-        left_released = enabled and pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT)
+        left_click = effective_enabled and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT)
+        left_down = effective_enabled and pr.is_mouse_button_down(pr.MouseButton.MOUSE_BUTTON_LEFT)
+        left_released = effective_enabled and pr.is_mouse_button_released(pr.MouseButton.MOUSE_BUTTON_LEFT)
 
         # Draw tree container frame
         rect = pr.Rectangle(self.x, self.y, self.width, self.height)

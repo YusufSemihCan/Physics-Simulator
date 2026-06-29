@@ -159,5 +159,19 @@ class TestWorkspaceUIAndMultiMode(unittest.TestCase):
                     picked = self.mock_app.fields_scene.pick_source(0.0, 0.0)
         self.assertEqual(picked, ch)
 
+    @patch('pyray.draw_rectangle_rounded')
+    @patch('pyray.draw_rectangle_rounded_lines')
+    @patch('pyray.measure_text', return_value=50)
+    @patch('pyray.draw_text')
+    def test_uistate_interaction_blocking(self, *args):
+        from Graphics.UI.ui_elements import Button, UIState
+        btn = Button(0, 0, 100, 30, "Test")
+        UIState.block_interactions = True
+        with patch('pyray.get_mouse_position', return_value=pr.Vector2(50, 15)):
+            with patch('pyray.check_collision_point_rec', return_value=True):
+                with patch('pyray.is_mouse_button_pressed', return_value=True):
+                    self.assertFalse(btn.update_and_draw())
+        UIState.block_interactions = False
+
 if __name__ == '__main__':
     unittest.main()

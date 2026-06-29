@@ -28,6 +28,14 @@ class MainMenuScreen:
         self.btn_m_fields = Button(0, 0, 360, 40, "Electromagnetic Fields")
         self.btn_m_back = Button(0, 0, 360, 35, "Cancel")
 
+        self._modal_buttons = [
+            (self.btn_m_3d, SimulationMode.KINEMATICS_3D),
+            (self.btn_m_2d, SimulationMode.KINETIC_2D),
+            (self.btn_m_circuits, SimulationMode.CIRCUITS),
+            (self.btn_m_optics, SimulationMode.OPTICS),
+            (self.btn_m_fields, SimulationMode.FIELDS),
+        ]
+
     def update_and_draw(self, app=None) -> AppScreen:
         sw = pr.get_screen_width()
         sh = pr.get_screen_height()
@@ -44,33 +52,15 @@ class MainMenuScreen:
             pr.draw_line(mx + 20, my + 55, mx + mw - 20, my + 55, Colors.UI_BORDER)
 
             bx = mx + 40
-            self.btn_m_3d.rect.x, self.btn_m_3d.rect.y = bx, my + 70
-            self.btn_m_2d.rect.x, self.btn_m_2d.rect.y = bx, my + 120
-            self.btn_m_circuits.rect.x, self.btn_m_circuits.rect.y = bx, my + 170
-            self.btn_m_optics.rect.x, self.btn_m_optics.rect.y = bx, my + 220
-            self.btn_m_fields.rect.x, self.btn_m_fields.rect.y = bx, my + 270
-            self.btn_m_back.rect.x, self.btn_m_back.rect.y = bx, my + 325
+            for i, (btn, mode) in enumerate(self._modal_buttons):
+                btn.rect.x, btn.rect.y = bx, my + 70 + i * 50
+                if btn.update_and_draw():
+                    self.show_new_sim_modal = False
+                    if app and hasattr(app, 'switch_mode'):
+                        app.switch_mode(mode)
+                    return AppScreen.SIMULATION
 
-            if self.btn_m_3d.update_and_draw():
-                self.show_new_sim_modal = False
-                if app and hasattr(app, 'switch_mode'): app.switch_mode(SimulationMode.KINEMATICS_3D)
-                return AppScreen.SIMULATION
-            if self.btn_m_2d.update_and_draw():
-                self.show_new_sim_modal = False
-                if app and hasattr(app, 'switch_mode'): app.switch_mode(SimulationMode.KINETIC_2D)
-                return AppScreen.SIMULATION
-            if self.btn_m_circuits.update_and_draw():
-                self.show_new_sim_modal = False
-                if app and hasattr(app, 'switch_mode'): app.switch_mode(SimulationMode.CIRCUITS)
-                return AppScreen.SIMULATION
-            if self.btn_m_optics.update_and_draw():
-                self.show_new_sim_modal = False
-                if app and hasattr(app, 'switch_mode'): app.switch_mode(SimulationMode.OPTICS)
-                return AppScreen.SIMULATION
-            if self.btn_m_fields.update_and_draw():
-                self.show_new_sim_modal = False
-                if app and hasattr(app, 'switch_mode'): app.switch_mode(SimulationMode.FIELDS)
-                return AppScreen.SIMULATION
+            self.btn_m_back.rect.x, self.btn_m_back.rect.y = bx, my + 325
             if self.btn_m_back.update_and_draw() or pr.is_key_pressed(pr.KeyboardKey.KEY_ESCAPE):
                 self.show_new_sim_modal = False
 

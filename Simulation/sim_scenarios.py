@@ -6,7 +6,9 @@ from typing import List, Optional, Union
 from Simulation.sim_shapes import PhysicsShape
 from Simulation.sim_controller import SimulationScene
 from Simulation.sim_modes import SimulationMode
-from Graphics.Rendering.render_colors import Colors
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Each domain stores scenarios in its own subdirectory to avoid cross-contamination
 _MODE_DIRS = {
@@ -63,7 +65,7 @@ class ScenarioManager:
                 dest = os.path.join(kinematics_dir, entry)
                 if not os.path.exists(dest):
                     shutil.move(full, dest)
-                    print(f"[~] Migrated legacy scenario: {entry} -> kinematics/")
+                    logger.info(f"[~] Migrated legacy scenario: {entry} -> kinematics/")
 
     def ensure_presets(self) -> None:
         """Creates the mode's scenarios directory and generates built-in presets if empty."""
@@ -84,7 +86,7 @@ class ScenarioManager:
 
     def _create_kinematics_presets(self) -> None:
         s1 = SimulationScene("Single Sphere", "A demonstration bouncing sphere under normal gravity.")
-        s1.shapes.append(PhysicsShape("ball_1", "sphere", pr.Vector3(0.0, 8.0, 0.0), pr.Vector3(3.0, 0.0, 2.0), pr.Vector3(2.0, 2.0, 2.0), 1.0, Colors.SHAPE_ACCENT, 2.0, 0.82))
+        s1.shapes.append(PhysicsShape("ball_1", "sphere", pr.Vector3(0.0, 8.0, 0.0), pr.Vector3(3.0, 0.0, 2.0), pr.Vector3(2.0, 2.0, 2.0), 1.0, pr.Color(229, 192, 123, 255), 2.0, 0.82))
         self.save_scenario("Single Sphere", s1)
 
         s2 = SimulationScene("Double Cascade", "Two spheres falling from staggered elevations.")
@@ -94,7 +96,7 @@ class ScenarioManager:
 
         s3 = SimulationScene("Cube & Sphere", "Mixed geometry rigid bodies interact.")
         s3.shapes.append(PhysicsShape("cube_1",   "cube",   pr.Vector3(0.0, 9.0, -2.0), pr.Vector3(0.0, 0.0, 1.5), pr.Vector3(2.0, 2.0, 2.0), 1.0, pr.Color(229, 115, 115, 255), 2.0, 0.7))
-        s3.shapes.append(PhysicsShape("sphere_1", "sphere", pr.Vector3(0.0, 5.0, 2.0),  pr.Vector3(0.0, 0.0, -1.5), pr.Vector3(2.0, 2.0, 2.0), 1.0, Colors.SHAPE_ACCENT, 2.0, 0.8))
+        s3.shapes.append(PhysicsShape("sphere_1", "sphere", pr.Vector3(0.0, 5.0, 2.0),  pr.Vector3(0.0, 0.0, -1.5), pr.Vector3(2.0, 2.0, 2.0), 1.0, pr.Color(229, 192, 123, 255), 2.0, 0.8))
         self.save_scenario("Cube & Sphere", s3)
 
     def _create_circuits_preset(self) -> None:
@@ -145,10 +147,10 @@ class ScenarioManager:
             os.makedirs(full_path, exist_ok=True)
             with open(os.path.join(full_path, ".folder"), "w", encoding="utf-8") as f:
                 f.write("directory marker")
-            print(f"[+] Folder created: {full_path}")
+            logger.info(f"[+] Folder created: {full_path}")
             return True
         except Exception as e:
-            print(f"[!] Error creating folder: {e}")
+            logger.error(f"[!] Error creating folder: {e}")
             return False
 
     def save_scenario(self, name: str, scene: SimulationScene) -> None:
@@ -157,12 +159,12 @@ class ScenarioManager:
         scene.name = name
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(scene.to_dict(), f, indent=4)
-        print(f"[+] Scenario saved: {filepath}")
+        logger.info(f"[+] Scenario saved: {filepath}")
 
     def load_scenario(self, name: str) -> Optional[SimulationScene]:
         filepath = os.path.join(self.scenarios_dir, f"{name}.json")
         if not os.path.exists(filepath):
-            print(f"[!] Scenario not found: {filepath}")
+            logger.warning(f"[!] Scenario not found: {filepath}")
             return None
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -179,16 +181,16 @@ class ScenarioManager:
                 dest_path = os.path.join(target_dir, os.path.basename(src_name))
                 if os.path.normpath(src_dir) != os.path.normpath(dest_path):
                     shutil.move(src_dir, dest_path)
-                    print(f"[+] Moved folder {src_dir} -> {dest_path}")
+                    logger.info(f"[+] Moved folder {src_dir} -> {dest_path}")
                 return True
             elif os.path.exists(src_file):
                 dest_path = os.path.join(target_dir, os.path.basename(src_name) + ".json")
                 if os.path.normpath(src_file) != os.path.normpath(dest_path):
                     shutil.move(src_file, dest_path)
-                    print(f"[+] Moved scenario {src_file} -> {dest_path}")
+                    logger.info(f"[+] Moved scenario {src_file} -> {dest_path}")
                 return True
         except Exception as e:
-            print(f"[!] Error moving scenario: {e}")
+            logger.error(f"[!] Error moving scenario: {e}")
         return False
 
     def delete_scenario(self, name: str) -> bool:
@@ -196,12 +198,12 @@ class ScenarioManager:
         filepath = os.path.join(self.scenarios_dir, f"{name}.json")
         if os.path.isdir(dirpath):
             shutil.rmtree(dirpath)
-            print(f"[-] Folder deleted: {dirpath}")
+            logger.info(f"[-] Folder deleted: {dirpath}")
             self.ensure_presets()
             return True
         elif os.path.exists(filepath):
             os.remove(filepath)
-            print(f"[-] Scenario deleted: {filepath}")
+            logger.info(f"[-] Scenario deleted: {filepath}")
             self.ensure_presets()
             return True
         return False
@@ -215,15 +217,15 @@ class ScenarioManager:
         try:
             if os.path.isdir(old_dir):
                 if os.path.exists(new_dir) or os.path.exists(new_file):
-                    print("[!] Cannot rename: destination already exists.")
+                    logger.warning("[!] Cannot rename: destination already exists.")
                     return False
                 os.makedirs(os.path.dirname(new_dir), exist_ok=True)
                 shutil.move(old_dir, new_dir)
-                print(f"[+] Renamed folder {old_dir} -> {new_dir}")
+                logger.info(f"[+] Renamed folder {old_dir} -> {new_dir}")
                 return True
             elif os.path.exists(old_file):
                 if os.path.exists(new_file) or os.path.exists(new_dir):
-                    print("[!] Cannot rename: destination already exists.")
+                    logger.warning("[!] Cannot rename: destination already exists.")
                     return False
                 os.makedirs(os.path.dirname(new_file), exist_ok=True)
                 shutil.move(old_file, new_file)
@@ -234,9 +236,9 @@ class ScenarioManager:
                     with open(new_file, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=4)
                 except Exception as e:
-                    print(f"[!] Warning: could not update internal name field: {e}")
-                print(f"[+] Renamed scenario {old_file} -> {new_file}")
+                    logger.warning(f"[!] Warning: could not update internal name field: {e}")
+                logger.info(f"[+] Renamed scenario {old_file} -> {new_file}")
                 return True
         except Exception as e:
-            print(f"[!] Error renaming scenario: {e}")
+            logger.error(f"[!] Error renaming scenario: {e}")
         return False

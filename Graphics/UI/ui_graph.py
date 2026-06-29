@@ -84,14 +84,14 @@ class GraphRenderer:
         
         pos_str = f"X:{shape.pos.x:.1f}  Y:{shape.pos.y:.1f}  Z:{shape.pos.z:.1f}"
         vel_str = f"Vx:{shape.vel.x:.1f} Vy:{shape.vel.y:.1f} Vz:{shape.vel.z:.1f}"
-        pr.draw_text(f"Pos (m):   {pos_str}", px + 15, py + 95, 14, pr.SKYBLUE)
+        pr.draw_text(f"Pos (m):   {pos_str}", px + 15, py + 95, 14, Colors.AXIS_Z)
         pr.draw_text(f"Vel (m/s): {vel_str}", px + 15, py + 115, 14, Colors.VECTOR_VELOCITY)
         pr.draw_text(f"Speed:     {shape.speed:.2f} m/s", px + 15, py + 135, 14, Colors.VECTOR_ACCEL)
 
         ke = shape.kinetic_energy()
         pe = shape.potential_energy(gravity)
         tot = shape.total_energy(gravity)
-        pr.draw_text(f"KE: {ke:.1f} J | PE: {pe:.1f} J | Tot: {tot:.1f} J", px + 15, py + 160, 14, pr.Color(255, 183, 77, 255))
+        pr.draw_text(f"KE: {ke:.1f} J | PE: {pe:.1f} J | Tot: {tot:.1f} J", px + 15, py + 160, 14, Colors.ENERGY_KE)
 
         # 2. REAL-TIME GRAPHING OVERLAY
         pr.draw_line(px + 15, py + 190, px + panel_w - 15, py + 190, Colors.UI_BORDER)
@@ -117,13 +117,13 @@ class GraphRenderer:
         # Graph drawing box
         gx, gy, gw, gh = px + 15, py + 265, panel_w - 30, 240
         g_rect = pr.Rectangle(gx, gy, gw, gh)
-        pr.draw_rectangle(gx, gy, gw, gh, pr.Color(15, 18, 22, 255))
-        pr.draw_rectangle_lines(gx, gy, gw, gh, pr.DARKGRAY)
+        pr.draw_rectangle(gx, gy, gw, gh, Colors.GRAPH_BG)
+        pr.draw_rectangle_lines(gx, gy, gw, gh, Colors.GRID_MAJOR)
 
         # Draw baseline grid
         for i in range(1, 4):
             ly = gy + int(i * gh / 4)
-            pr.draw_line(gx, ly, gx + gw, ly, pr.Color(40, 45, 55, 255))
+            pr.draw_line(gx, ly, gx + gw, ly, Colors.GRAPH_GRID)
 
         match self.active_tab:
             case "h":
@@ -158,11 +158,11 @@ class GraphRenderer:
         d_tot = self.history_tot if self.history_tot else [tot]
         max_v = max(50.0, max(d_tot) * 1.1)
         
-        self.draw_polyline(d_pe, g_rect, 0.0, max_v, pr.Color(129, 199, 132, 255))
-        self.draw_polyline(d_ke, g_rect, 0.0, max_v, pr.Color(255, 183, 77, 255))
-        self.draw_polyline(d_tot, g_rect, 0.0, max_v, pr.WHITE)
+        self.draw_polyline(d_pe, g_rect, 0.0, max_v, Colors.ENERGY_PE)
+        self.draw_polyline(d_ke, g_rect, 0.0, max_v, Colors.ENERGY_KE)
+        self.draw_polyline(d_tot, g_rect, 0.0, max_v, Colors.ENERGY_TOT)
 
-        pr.draw_text("Total Energy (White)", gx + 8, gy + 8, 12, pr.WHITE)
-        pr.draw_text("Potential Energy (Green)", gx + 8, gy + 24, 12, pr.Color(129, 199, 132, 255))
-        pr.draw_text("Kinetic Energy (Orange)", gx + 8, gy + 40, 12, pr.Color(255, 183, 77, 255))
-        pr.draw_text(f"Scale Max: {max_v:.0f} J", gx + gw - 110, gy + gh - 20, 12, pr.LIGHTGRAY)
+        pr.draw_text("Total Energy (White)", gx + 8, gy + 8, 12, Colors.ENERGY_TOT)
+        pr.draw_text("Potential Energy (Green)", gx + 8, gy + 24, 12, Colors.ENERGY_PE)
+        pr.draw_text("Kinetic Energy (Orange)", gx + 8, gy + 40, 12, Colors.ENERGY_KE)
+        pr.draw_text(f"Scale Max: {max_v:.0f} J", gx + gw - 110, gy + gh - 20, 12, Colors.TEXT)
