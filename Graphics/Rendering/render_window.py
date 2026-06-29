@@ -1,5 +1,22 @@
 import pyray as pr
 import math
+from typing import Callable, Dict, Tuple
+from Graphics.UI.ui_key_bindings import (
+    KeyBindingsManager,
+    ACTION_PLAY_PAUSE,
+    ACTION_STOP,
+    ACTION_TOGGLE_GRID,
+    ACTION_TOGGLE_VECTORS,
+    ACTION_TOGGLE_TRAILS,
+    ACTION_BORDERLESS,
+    ACTION_CYCLE_RES,
+    ACTION_ZOOM_IN,
+    ACTION_ZOOM_OUT,
+    ACTION_PAN_UP,
+    ACTION_PAN_DOWN,
+    ACTION_PAN_LEFT,
+    ACTION_PAN_RIGHT,
+)
 from Graphics.Rendering.render_colors import Colors
 from Graphics.Rendering.render_grid import GridRenderer
 from Graphics.Rendering.render_camera import CameraController
@@ -77,32 +94,47 @@ class SimulationRenderer:
         self.fields_renderer = None
         self.pan_x = 0.0
         self.pan_y = 0.0
+        self.zoom_2d = 1.0
         self.switch_mode(SimulationMode.KINEMATICS_3D)
 
         self.workspace_ui = WorkspaceUI(self)
 
-        # Dictionary dispatch map for keyboard shortcuts to avoid elif chains
-        self._key_actions = {
-            pr.KeyboardKey.KEY_P: lambda: self.sim.toggle_play(),
-            pr.KeyboardKey.KEY_SPACE: lambda: self.sim.toggle_play(),
-            pr.KeyboardKey.KEY_S: self._stop_sim,
-            pr.KeyboardKey.KEY_G: self._toggle_grid,
-            pr.KeyboardKey.KEY_V: lambda: setattr(self.vectors, 'enabled', not self.vectors.enabled),
-            pr.KeyboardKey.KEY_T: lambda: setattr(self.trails, 'enabled', not self.trails.enabled),
-            pr.KeyboardKey.KEY_F11: pr.toggle_borderless_windowed,
-            pr.KeyboardKey.KEY_B: pr.toggle_borderless_windowed,
-            pr.KeyboardKey.KEY_R: self._cycle_resolution,
+        # Action dispatch map for keyboard shortcuts
+        self._action_handlers: Dict[str, Callable[[], None]] = {
+            ACTION_PLAY_PAUSE: lambda: self.sim.toggle_play(),
+            ACTION_STOP: self._stop_sim,
+            ACTION_TOGGLE_GRID: self._toggle_grid,
+            ACTION_TOGGLE_VECTORS: lambda: setattr(self.vectors, 'enabled', not self.vectors.enabled),
+            ACTION_TOGGLE_TRAILS: lambda: setattr(self.trails, 'enabled', not self.trails.enabled),
+            ACTION_BORDERLESS: pr.toggle_borderless_windowed,
+            ACTION_CYCLE_RES: self._cycle_resolution,
         }
 
-        # 2D pan keyboard direction accumulation map (key → (dx, dy))
-        self._pan_keys = {
-            pr.KeyboardKey.KEY_W:    (0.0,  1.0),
-            pr.KeyboardKey.KEY_UP:   (0.0,  1.0),
-            pr.KeyboardKey.KEY_S:    (0.0, -1.0),
-            pr.KeyboardKey.KEY_DOWN: (0.0, -1.0),
-            pr.KeyboardKey.KEY_A:    (1.0,  0.0),
-            pr.KeyboardKey.KEY_D:   (-1.0,  0.0),
+        # 2D pan action direction accumulation map (action → (dx, dy))
+        self._pan_actions: Dict[str, Tuple[float, float]] = {
+            ACTION_PAN_UP:    (0.0,  1.0),
+            ACTION_PAN_DOWN:  (0.0, -1.0),
+            ACTION_PAN_LEFT:  (1.0,  0.0),
+            ACTION_PAN_RIGHT: (-1.0,  0.0),
         }
+
+    @property
+    def _key_actions(self) -> Dict[int, Callable[[], None]]:
+        mgr = KeyBindingsManager.get_instance()
+        res: Dict[int, Callable[[], None]] = {}
+        for action, handler in self._action_handlers.items():
+            for key in mgr.get_action_keys(action):
+                res[key] = handler
+        return res
+
+    @property
+    def _pan_keys(self) -> Dict[int, Tuple[float, float]]:
+        mgr = KeyBindingsManager.get_instance()
+        res: Dict[int, Tuple[float, float]] = {}
+        for action, delta in self._pan_actions.items():
+            for key in mgr.get_action_keys(action):
+                res[key] = delta
+        return res
 
         # 3D shape draw strategy: shape_type → (solid_fn, wire_fn)
         self._shape_draw_3d = {
@@ -138,6 +170,7 @@ class SimulationRenderer:
         self.placement_mode = None
         self.pan_x = 0.0
         self.pan_y = 0.0
+        self.zoom_2d = 1.0
 
         # Rebuild ScenarioManager so file tree points to this mode's directory
         self.scenarios = ScenarioManager(mode=mode)
@@ -202,13 +235,23 @@ class SimulationRenderer:
         mouse_pos = pr.get_mouse_position()
         is_over_panel = self.workspace_ui.is_over_ui(mouse_pos)
 
+        is_shift = pr.is_key_down(pr.KeyboardKey.KEY_LEFT_SHIFT) or pr.is_key_down(pr.KeyboardKey.KEY_RIGHT_SHIFT)
+        wheel_move = pr.get_mouse_wheel_move()
+        if is_shift and wheel_move != 0:
+            if self.selected_shape is not None and hasattr(self.selected_shape, 'pos'):
+                self.selected_shape.pos.y = max(0.1, min(50.0, self.selected_shape.pos.y + wheel_move * 0.5))
+                if hasattr(self.selected_shape, 'vel'):
+                    self.selected_shape.vel.y = 0.0
+            else:
+                self.spawn_height = max(0.5, min(14.0, self.spawn_height + wheel_move * 0.5))
+
         # Interactive placement adjustments
         if self.placement_mode:
             if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_RIGHT):
                 self.placement_mode = None
                 return
             wheel = pr.get_mouse_wheel_move()
-            if wheel != 0:
+            if not is_shift and wheel != 0:
                 self.spawn_height = max(0.5, min(14.0, self.spawn_height + wheel * 0.5))
         elif self.mode_3d:
             # Check object picking selection on Left Click via dispatch table
@@ -231,17 +274,29 @@ class SimulationRenderer:
                 delta = pr.get_mouse_delta()
                 self.pan_x += delta.x
                 self.pan_y += delta.y
-            # Accumulate pan direction from all held keys in a single pass
+            # Accumulate pan direction from all held actions in a single pass
             pan_speed = 5.0
-            for key, (dx, dy) in self._pan_keys.items():
-                if pr.is_key_down(key):
+            mgr = KeyBindingsManager.get_instance()
+            for action, (dx, dy) in self._pan_actions.items():
+                if mgr.is_action_down(action):
                     self.pan_x += dx * pan_speed
                     self.pan_y += dy * pan_speed
 
-        # Keyboard shortcuts via dictionary dispatch
-        for key, action in self._key_actions.items():
-            if pr.is_key_pressed(key):
-                action()
+            # 2D Zoom via mouse wheel and keyboard actions
+            wheel = 0.0 if is_shift else pr.get_mouse_wheel_move()
+            zoom_delta = wheel * 0.1
+            if mgr.is_action_down(ACTION_ZOOM_IN):
+                zoom_delta += 1.0 * max(0.001, pr.get_frame_time())
+            if mgr.is_action_down(ACTION_ZOOM_OUT):
+                zoom_delta -= 1.0 * max(0.001, pr.get_frame_time())
+            if zoom_delta != 0.0:
+                self.zoom_2d = max(0.2, min(5.0, self.zoom_2d + zoom_delta))
+
+        # Keyboard shortcuts via dynamic action dispatch
+        mgr = KeyBindingsManager.get_instance()
+        for action, handler in self._action_handlers.items():
+            if mgr.is_action_pressed(action):
+                handler()
                 break
 
         if pr.is_key_down(pr.KeyboardKey.KEY_LEFT):
@@ -366,25 +421,28 @@ class SimulationRenderer:
         sh = pr.get_screen_height()
         mouse_pos = pr.get_mouse_position()
         is_over_ui = self.workspace_ui.is_over_ui(mouse_pos)
+        self.circuit_renderer.scale = 40.0 * self.zoom_2d
         self.circuit_renderer.handle_input(self.circuit_scene, sw, sh, self.pan_x, self.pan_y, is_over_ui)
         self.circuit_renderer.draw(self.circuit_scene, sw, sh, dt, self.pan_x, self.pan_y)
         if pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT) and not is_over_ui:
             cx = int(sw // 2 + self.pan_x)
             cy = int(sh // 2 + self.pan_y)
-            gx = round((mouse_pos.x - cx) / 40.0 * 2.0) / 2.0
-            gy = round((cy - mouse_pos.y) / 40.0 * 2.0) / 2.0
+            gx = round((mouse_pos.x - cx) / self.circuit_renderer.scale * 2.0) / 2.0
+            gy = round((cy - mouse_pos.y) / self.circuit_renderer.scale * 2.0) / 2.0
             picked = self.circuit_scene.pick_component(gx, gy)
             self.selected_shape = picked
 
     def _render_mode_optics(self, dt: float) -> None:
         sw = pr.get_screen_width()
         sh = pr.get_screen_height()
+        self.optics_renderer.scale = 40.0 * self.zoom_2d
         self.optics_renderer.draw(self.optics_scene, sw, sh, dt, self.pan_x, self.pan_y)
         self._handle_grid_picking_placing(sw, sh)
 
     def _render_mode_fields(self, dt: float) -> None:
         sw = pr.get_screen_width()
         sh = pr.get_screen_height()
+        self.fields_renderer.scale = 40.0 * self.zoom_2d
         self.fields_renderer.draw(self.fields_scene, sw, sh, dt, self.pan_x, self.pan_y)
         self._handle_grid_picking_placing(sw, sh)
 
@@ -393,7 +451,7 @@ class SimulationRenderer:
         is_over_panel = self.workspace_ui.is_over_ui(mouse_pos)
         cx = int(sw // 2 + self.pan_x)
         cy = int(sh // 2 + self.pan_y)
-        scale = 40.0
+        scale = 40.0 * self.zoom_2d
         gx = round((mouse_pos.x - cx) / scale * 2.0) / 2.0
         gy = round((cy - mouse_pos.y) / scale * 2.0) / 2.0
         screen_gx = cx + int(gx * scale)
@@ -485,7 +543,7 @@ class SimulationRenderer:
         sh = pr.get_screen_height()
         center_x = int(sw // 2 + self.pan_x)
         center_y = int(sh // 2 + self.pan_y)
-        scale = 35.0
+        scale = 35.0 * self.zoom_2d
 
         start_x = int(center_x % scale)
         for lx in range(start_x, sw, int(scale)):
