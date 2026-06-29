@@ -1,6 +1,6 @@
 import pyray as pr
 from Graphics.Rendering.render_colors import Colors
-from Graphics.UI.ui_elements import Button, Slider, Toggle
+from Graphics.UI.ui_elements import Button, Slider, Toggle, UIState
 from Simulation.sim_modes import SimulationMode
 from Graphics.UI.ui_menu import AppScreen
 
@@ -68,8 +68,8 @@ class WorkspaceUI:
 
         # Dispatch lookups for clean optimization
         self.dropdown_rects = {
-            'file': pr.Rectangle(10, 40, 160, 175),
-            'view': pr.Rectangle(100, 40, 150, 110)
+            'file': pr.Rectangle(10, 40, 160, 215),
+            'view': pr.Rectangle(100, 40, 150, 115)
         }
         self.dropdown_draw_map = {
             'file': self._draw_dropdown_file,
@@ -124,7 +124,11 @@ class WorkspaceUI:
         
         # Close dropdown if clicked outside
         if self.active_dropdown and pr.is_mouse_button_pressed(pr.MouseButton.MOUSE_BUTTON_LEFT):
-            if not self.is_over_ui(mouse_pos):
+            is_inside_dropdown = False
+            if self.active_dropdown in self.dropdown_rects:
+                is_inside_dropdown = pr.check_collision_point_rec(mouse_pos, self.dropdown_rects[self.active_dropdown])
+            clicked_toggle = pr.check_collision_point_rec(mouse_pos, self.btn_top_file.rect) or pr.check_collision_point_rec(mouse_pos, self.btn_top_view.rect)
+            if not is_inside_dropdown and not clicked_toggle:
                 self.active_dropdown = None
 
         # 1. Draw Top Bar
@@ -142,6 +146,14 @@ class WorkspaceUI:
             title_str = f"Active Domain: {self._mode_names.get(self.app.sim_mode, 'Unknown')}"
             pr.draw_text(title_str, sw - 320, 12, 16, Colors.UI_ACTIVE)
             pr.draw_fps(sw - 90, 10)
+
+        is_over_active_dropdown = False
+        if self.active_dropdown and self.active_dropdown in self.dropdown_rects:
+            is_over_active_dropdown = pr.check_collision_point_rec(mouse_pos, self.dropdown_rects[self.active_dropdown])
+
+        previous_block_state = UIState.block_interactions
+        if is_over_active_dropdown:
+            UIState.block_interactions = True
 
         # 2. Draw Sidebar
         sb_x = 0 if self.sidebar_position == 'left' else sw - 250
@@ -194,6 +206,9 @@ class WorkspaceUI:
                 self.app.sim.rewind(steps=5)
                 
             self.slider_gravity.update_and_draw()
+
+        if is_over_active_dropdown:
+            UIState.block_interactions = previous_block_state
 
         # 4. Draw Unfolding Dropdowns (Always rendered on top of everything)
         handler = self.dropdown_draw_map.get(self.active_dropdown)

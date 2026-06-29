@@ -118,24 +118,6 @@ class SimulationRenderer:
             ACTION_PAN_RIGHT: (-1.0,  0.0),
         }
 
-    @property
-    def _key_actions(self) -> Dict[int, Callable[[], None]]:
-        mgr = KeyBindingsManager.get_instance()
-        res: Dict[int, Callable[[], None]] = {}
-        for action, handler in self._action_handlers.items():
-            for key in mgr.get_action_keys(action):
-                res[key] = handler
-        return res
-
-    @property
-    def _pan_keys(self) -> Dict[int, Tuple[float, float]]:
-        mgr = KeyBindingsManager.get_instance()
-        res: Dict[int, Tuple[float, float]] = {}
-        for action, delta in self._pan_actions.items():
-            for key in mgr.get_action_keys(action):
-                res[key] = delta
-        return res
-
         # 3D shape draw strategy: shape_type → (solid_fn, wire_fn)
         self._shape_draw_3d = {
             "sphere": (
@@ -162,6 +144,24 @@ class SimulationRenderer:
 
         # Screen-render dispatch map (built after screen objects exist)
         self._screen_render_map = None
+
+    @property
+    def _key_actions(self) -> Dict[int, Callable[[], None]]:
+        mgr = KeyBindingsManager.get_instance()
+        res: Dict[int, Callable[[], None]] = {}
+        for action, handler in self._action_handlers.items():
+            for key in mgr.get_action_keys(action):
+                res[key] = handler
+        return res
+
+    @property
+    def _pan_keys(self) -> Dict[int, Tuple[float, float]]:
+        mgr = KeyBindingsManager.get_instance()
+        res: Dict[int, Tuple[float, float]] = {}
+        for action, delta in self._pan_actions.items():
+            for key in mgr.get_action_keys(action):
+                res[key] = delta
+        return res
 
     def switch_mode(self, mode: SimulationMode) -> None:
         self.sim_mode = mode
@@ -242,8 +242,13 @@ class SimulationRenderer:
                 self.selected_shape.pos.y = max(0.1, min(50.0, self.selected_shape.pos.y + wheel_move * 0.5))
                 if hasattr(self.selected_shape, 'vel'):
                     self.selected_shape.vel.y = 0.0
-            else:
+            elif self.placement_mode:
                 self.spawn_height = max(0.5, min(14.0, self.spawn_height + wheel_move * 0.5))
+            elif self.mode_3d:
+                self.camera_ctrl.target.y = max(-50.0, min(100.0, self.camera_ctrl.target.y + wheel_move * 0.5))
+                self.camera_ctrl.update_camera_vectors()
+            else:
+                self.pan_y += wheel_move * 10.0
 
         # Interactive placement adjustments
         if self.placement_mode:

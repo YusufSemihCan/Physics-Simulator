@@ -65,9 +65,63 @@ class TestRenderWindowDispatch(unittest.TestCase):
         mock_mb_pressed.return_value = False
         mock_mb_down.return_value = False
 
+        app.placement_mode = "sphere"
         initial_spawn_h = app.spawn_height
         app.handle_input()
         self.assertAlmostEqual(app.spawn_height, initial_spawn_h + 1.0)
+
+    @patch('pyray.init_window')
+    @patch('pyray.set_target_fps')
+    @patch('pyray.get_mouse_position')
+    @patch('pyray.is_key_down')
+    @patch('pyray.get_mouse_wheel_move')
+    @patch('pyray.is_mouse_button_pressed')
+    @patch('pyray.is_mouse_button_down')
+    def test_shift_mouse_wheel_camera_height(self, mock_mb_down, mock_mb_pressed, mock_wheel, mock_key_down, mock_mouse_pos, *args) -> None:
+        """Verify holding Shift and scrolling mouse wheel adjusts camera height in 3D mode."""
+        app = SimulationRenderer()
+        app.current_screen = AppScreen.SIMULATION
+        mock_mouse_pos.return_value = pr.Vector2(100, 100)
+        mock_key_down.return_value = True
+        mock_wheel.return_value = 2.0
+        mock_mb_pressed.return_value = False
+        mock_mb_down.return_value = False
+
+        initial_target_y = app.camera_ctrl.target.y
+        app.handle_input()
+        self.assertAlmostEqual(app.camera_ctrl.target.y, initial_target_y + 1.0)
+
+    @patch('pyray.init_window')
+    @patch('pyray.set_target_fps')
+    @patch('pyray.get_mouse_position')
+    @patch('pyray.is_mouse_button_pressed')
+    @patch('pyray.draw_rectangle')
+    @patch('pyray.draw_line')
+    @patch('pyray.draw_text')
+    def test_dropdown_interaction_locking(self, mock_dt, mock_dl, mock_dr, mock_mb_pressed, mock_mouse_pos, *args) -> None:
+        """Verify hovering over active dropdown locks interaction for background elements."""
+        app = SimulationRenderer()
+        app.current_screen = AppScreen.SIMULATION
+        app.workspace_ui.active_dropdown = 'file'
+        mock_mouse_pos.return_value = pr.Vector2(50, 50)
+        mock_mb_pressed.return_value = False
+
+        blocked_states = []
+        def mock_sidebar(*args):
+            from Graphics.UI.ui_elements import UIState
+            blocked_states.append(UIState.block_interactions)
+
+        app.workspace_ui.show_top_bar = False
+        app.workspace_ui.show_bottom_bar = False
+        app.workspace_ui.show_sidebar = True
+        app.workspace_ui.sidebar_draw_map = {app.sim_mode: mock_sidebar}
+        app.workspace_ui.inspector_draw_map = {app.sim_mode: lambda *args: None}
+        app.workspace_ui.dropdown_draw_map = {'file': lambda: None}
+
+        app.workspace_ui.update_and_draw()
+        from Graphics.UI.ui_elements import UIState
+        self.assertTrue(blocked_states[0])
+        self.assertFalse(UIState.block_interactions)
 
     @patch('pyray.init_window')
     @patch('pyray.set_target_fps')
@@ -94,6 +148,17 @@ class TestRenderWindowDispatch(unittest.TestCase):
         app.handle_input()
         self.assertAlmostEqual(mock_shape.pos.y, 9.0)
         self.assertAlmostEqual(mock_shape.vel.y, 0.0)
+
+    @patch('pyray.init_window')
+    @patch('pyray.set_target_fps')
+    def test_build_screen_render_map(self, mock_fps, mock_init) -> None:
+        """Verify _screen_render_map is properly initialized and populated."""
+        app = SimulationRenderer()
+        self.assertIsNone(app._screen_render_map)
+        app._build_screen_render_map()
+        self.assertIsNotNone(app._screen_render_map)
+        self.assertIn(AppScreen.MAIN_MENU, app._screen_render_map)
+        self.assertIn(AppScreen.SETTINGS, app._screen_render_map)
 
 if __name__ == '__main__':
     unittest.main()

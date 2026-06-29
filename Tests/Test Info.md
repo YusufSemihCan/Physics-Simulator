@@ -24,7 +24,7 @@ python -m unittest discover -s "Tests" -p "test_*.py"
 | :--- | :--- | :---: | :--- |
 | [`test_key_bindings.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_key_bindings.py) | Key Bindings & Remapping | 5 | `KeyBindingsManager`, Action queries, Remapping |
 | [`test_render_camera.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_render_camera.py) | Orbital Camera Controller | 5 | `CameraController`, Presets dispatch table, Clamping, Shift zoom |
-| [`test_render_window.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_render_window.py) | Simulation Renderer Dispatch | 3 | `SimulationRenderer`, Keyboard shortcuts dispatch table, Shift height adjustment |
+| [`test_render_window.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_render_window.py) | Simulation Renderer Dispatch | 6 | `SimulationRenderer`, Keyboard shortcuts dispatch table, Shift camera/shape height adjustment, Dropdown interaction locking |
 | [`test_rendering_effects.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_rendering_effects.py) | VFX & Particle Systems | 2 | `TrailRenderer`, `ParticleSystem` |
 | [`test_sim_circuits.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_circuits.py) | DC Circuit Nodal Solver | 2 | `CircuitScene`, `CircuitSolver` |
 | [`test_sim_controller.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_controller.py) | Simulation Loop & Time Travel | 4 | `SimulationController`, Time-step buffer |
@@ -123,8 +123,11 @@ Tests orbital camera transformations, preset view positioning, and zoom/pitch bo
 ### 13. Simulation Renderer Input Dispatch ([`test_render_window.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_render_window.py))
 Tests global keyboard shortcut handling mapped through dictionary dispatch tables and mouse interaction modifiers.
 * `test_key_actions_dispatch_table`: Confirms all registered hotkeys (`P`, `SPACE`, `S`, `G`, `V`, `T`, `F11`, `B`, `R`) exist in `_key_actions`, verifies correct execution (e.g. grid toggling, resolution cycling), and confirms safe `None` fallback for unregistered keys.
-* `test_shift_mouse_wheel_height`: Verifies holding Shift and scrolling mouse wheel adjusts spawn height when no shape is selected.
+* `test_shift_mouse_wheel_height`: Verifies holding Shift and scrolling mouse wheel adjusts spawn height when in placement mode.
+* `test_shift_mouse_wheel_camera_height`: Verifies holding Shift and scrolling mouse wheel adjusts camera target Y in 3D mode when no object is selected.
 * `test_shift_mouse_wheel_selected_shape_height`: Verifies holding Shift and scrolling mouse wheel adjusts the Y position of a selected shape and resets vertical velocity.
+* `test_build_screen_render_map`: Verifies lazy initialization and content structure of the screen rendering dispatch map (`_screen_render_map`).
+* `test_dropdown_interaction_locking`: Verifies that hovering over open dropdown menus locks interactions (`UIState.block_interactions`) for underlying UI elements like buttons and sliders.
 * **Key Details & Mocks**: Must patch `pyray.init_window`, `pyray.set_target_fps`, `pyray.set_window_size`, and `pyray.toggle_borderless_windowed` to prevent OpenGL window creation during initialization. Ensure `current_screen` is set to `SIMULATION` when testing viewport input.
 
 ### 14. Main Menu & Modal Selection ([`test_ui_menu.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_ui_menu.py))
