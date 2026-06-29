@@ -98,6 +98,9 @@ class TestWorkspaceUIAndMultiMode(unittest.TestCase):
         shape.restitution = 0.8
         shape.pos = pr.Vector3(1.0, 2.0, 0.0)
         shape.speed = 10.0
+        shape.kinetic_energy.return_value = 250.0
+        shape.potential_energy.return_value = 98.1
+        shape.total_energy.return_value = 348.1
         self.mock_app.selected_shape = shape
         self.mock_app.sim_mode = SimulationMode.KINEMATICS_3D
         

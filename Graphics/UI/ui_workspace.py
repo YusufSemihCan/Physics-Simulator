@@ -314,7 +314,23 @@ class WorkspaceUI:
         pr.draw_text(f"Pos: ({obj.pos.x:.1f}, {obj.pos.y:.1f}) m", ix, curr_y, 14, Colors.GRID_MAJOR)
         curr_y += 18
         pr.draw_text(f"Speed: {obj.speed:.2f} m/s", ix, curr_y, 14, Colors.GRID_MAJOR)
-        curr_y += 24
+        curr_y += 18
+
+        if hasattr(obj, 'kinetic_energy'):
+            ke = obj.kinetic_energy()
+            pr.draw_text(f"KE: {ke:.1f} J", ix, curr_y, 14, Colors.ENERGY_KE)
+            curr_y += 18
+        if hasattr(obj, 'potential_energy'):
+            g = -self.slider_gravity.value
+            pe = obj.potential_energy(g)
+            pr.draw_text(f"PE: {pe:.1f} J", ix, curr_y, 14, Colors.ENERGY_PE)
+            curr_y += 18
+        if hasattr(obj, 'total_energy'):
+            g = -self.slider_gravity.value
+            tot = obj.total_energy(g)
+            pr.draw_text(f"Tot E: {tot:.1f} J", ix, curr_y, 14, Colors.ENERGY_TOT)
+            curr_y += 18
+        curr_y += 6
 
         if self.slider_prop1.label != "Mass (kg)":
             self.slider_prop1 = Slider(ix, curr_y, 220, 14, "Mass (kg)", 0.1, 50.0, obj.mass)
@@ -338,10 +354,12 @@ class WorkspaceUI:
         pr.draw_text(f"Type: {obj.comp_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
         curr_y += 18
         pr.draw_text(f"Current: {abs(obj.current):.3f} A", ix, curr_y, 14, Colors.GRID_MAJOR)
-        curr_y += 24
-
-        pr.draw_text(f"Type: {obj.comp_type.upper()}", ix, curr_y, 14, Colors.GRID_MAJOR)
-        curr_y += 24
+        curr_y += 18
+        if hasattr(obj, 'node_a') and hasattr(obj, 'node_b'):
+            v_drop = abs(obj.node_a.voltage - obj.node_b.voltage)
+            pr.draw_text(f"V Drop: {v_drop:.2f} V", ix, curr_y, 14, Colors.GRID_MAJOR)
+            curr_y += 18
+        curr_y += 6
         match obj.comp_type:
             case 'switch':
                 state_str = "CLOSED" if obj.state else "OPEN"

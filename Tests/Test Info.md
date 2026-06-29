@@ -108,7 +108,7 @@ Tests multi-domain object selection and the property workbench inspector panel.
 * `test_optics_picking_and_removal`: Tests ray-casting pick threshold accuracy on optical lenses/emitters and verifies removal from scene lists.
 * `test_fields_picking_and_removal`: Validates picking and removing charge sources on 2D/3D grids.
 * `test_circuits_picking`: Verifies midpoint picking bounding areas for circuit wires and resistors.
-* `test_inspector_kinematics_dispatch`: **(New Feature)** Confirms dynamic routing of rigid bodies into the Inspector workbench, verifying live synchronization of Mass and Restitution slider values.
+* `test_inspector_kinematics_dispatch`: Confirms dynamic routing of rigid bodies into the Inspector workbench, verifying live synchronization of Mass and Restitution slider values alongside real-time Kinetic, Potential, and Total Energy readouts.
 * `test_inspector_circuits_switch_toggle`: **(New Feature)** Validates selection of circuit switch components and confirms interactive toggle state label generation (`CLOSED` / `OPEN`).
 
 ### 12. Orbital Camera Controller ([`test_render_camera.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_render_camera.py))
