@@ -1,6 +1,7 @@
 import numpy as np
 
 class Body:
+    """ A body holds physical state (mass, position, velocity) and an accumulated force."""
     def __init__(self, mass, position, velocity = None):
         if mass <= 0:
             raise ValueError("Mass must be positive")
@@ -15,7 +16,7 @@ class Body:
     def apply_force(self, force):
         self.force += np.asarray(force, dtype=float)
 
-    def clear_forces(self):
+    def clear_force(self):
         self.force = np.zeros_like(self.position)
 
     def acceleration(self):
