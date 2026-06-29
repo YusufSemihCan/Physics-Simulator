@@ -2,6 +2,7 @@ import math
 import pyray as pr
 from dataclasses import dataclass
 from typing import Dict, Any
+from Simulation.sim_physics_bridge import PhysicsEngineBridge
 
 @dataclass
 class PhysicsShape:
@@ -21,13 +22,13 @@ class PhysicsShape:
         return math.sqrt(self.vel.x**2 + self.vel.y**2 + self.vel.z**2)
 
     def kinetic_energy(self) -> float:
-        return 0.5 * self.mass * (self.speed ** 2)
+        return PhysicsEngineBridge.kinetic_energy(self)
 
     def potential_energy(self, gravity: float = -9.81) -> float:
-        return self.mass * abs(gravity) * max(0.0, self.pos.y)
+        return PhysicsEngineBridge.potential_energy(self, gravity)
 
     def total_energy(self, gravity: float = -9.81) -> float:
-        return self.kinetic_energy() + self.potential_energy(gravity)
+        return PhysicsEngineBridge.total_energy(self, gravity)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes entity parameters to JSON dictionary."""

@@ -31,6 +31,7 @@ python -m unittest discover -s "Tests" -p "test_*.py"
 | [`test_sim_fields.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_fields.py) | EM Vector Field Calculation | 1 | `FieldScene`, `FieldCalculator` |
 | [`test_sim_optics.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_optics.py) | Ray Tracing & Reflection | 2 | `OpticsScene`, `OpticsSolver` |
 | [`test_sim_shapes.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_shapes.py) | Physics Data Structures | 4 | `PhysicsShape`, Energy calculations |
+| [`test_sim_physics_bridge.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_physics_bridge.py) | OOP Physics Engine Bridge | 2 | `PhysicsEngineBridge`, `World`, `Body`, `verlet` |
 | [`test_stability.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_stability.py) | Stress Testing & Crash Prevention | 3 | Overlapping collisions, NaN/Inf guards |
 | [`test_ui_elements.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_ui_elements.py) | Interactive UI Widgets | 3 | `Slider`, `Toggle`, `NodeSelector` |
 | [`test_ui_graph.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_ui_graph.py) | Real-time Telemetry Plotter | 3 | `GraphRenderer`, Ring buffer clamping |
@@ -146,3 +147,9 @@ Tests dynamic control remapping and action lookup queries.
 * `test_is_action_pressed` & `test_is_action_down`: Verifies action queries inspect assigned multi-key arrays accurately.
 * `test_remap_action`: Confirms dynamic remapping updates primary key assignments for actions.
 * **Key Details & Mocks**: Patches `pyray.is_key_pressed` and `pyray.is_key_down` to simulate keyboard input without an open window. Must reset `KeyBindingsManager._instance = None` in `setUp` for test independence.
+
+### 17. OOP Physics Engine Bridge ([`test_sim_physics_bridge.py`](file:///e:/Project%20Repo/Physics-Simulator/Tests/Unit%20Tests/test_sim_physics_bridge.py))
+Tests the integration bridge mapping visual simulation shapes to the collaborator-owned OOP physics backend (`World`, `Body`, `Gravity`, `verlet`).
+* `test_step_scene_advances_position`: Verifies that stepping the bridge advances falling rigid bodies under numerical Verlet gravity integration.
+* `test_step_scene_empty_or_zero_dt`: Verifies clean short-circuit edge handling when passing empty scenes or zero time deltas.
+* **Key Details & Mocks**: Pure headless numerical testing verifying numpy array translation back and forth without pyray rendering dependencies.

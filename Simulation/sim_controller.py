@@ -5,7 +5,7 @@ import uuid
 from collections import deque
 from typing import Dict, List, Any, Optional
 from Simulation.sim_shapes import PhysicsShape
-from Physics import step_physics
+from Simulation.sim_physics_bridge import PhysicsEngineBridge
 
 # Colour palette shared by all spawned shapes — built once at import time
 _SHAPE_PALETTE = [
@@ -150,8 +150,8 @@ class SimulationController:
                     for s in self.scene.shapes}
         self.history.append(snapshot)
 
-        # Delegate physics computation to the Physics module
-        bounce_events = step_physics(self.scene.shapes, dt, gravity)
+        # Delegate physics computation to the OOP Physics backend bridge
+        bounce_events = PhysicsEngineBridge.step_scene(self.scene.shapes, dt, gravity)
 
         # Handle UI rendering visual hooks (particles and trail rendering)
         if particle_system:
